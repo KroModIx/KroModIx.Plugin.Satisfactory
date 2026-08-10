@@ -235,6 +235,129 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
         _host.Shell.OpenDirectory(row.Source.ModDir);
     }
 
+    [ObservableProperty] private bool _isCheckingUpdates;
+
+    /// <summary>Prüft für jeden installierten Mod ob ficsit eine neuere
+    /// Version anbietet. Throttled 250 ms pro Mod. Setzt <c>HasUpdate</c> +
+    /// <c>LatestVersion</c> auf jeder Row wo Update verfügbar. Kann nur
+    /// laufen wenn Row eine <c>ModReference</c> hat (aus .uplugin).
+    /// Analog LS25-<c>InstalledModsViewModel.CheckUpdatesAsync</c>.</summary>
+    [RelayCommand]
+    private async Task CheckUpdatesAsync()
+    {
+        if (IsCheckingUpdates) return;
+        IsCheckingUpdates = true;
+        try
+        {
+            var rows = _all.ToList();
+            int checkedCount = 0, updatedCount = 0;
+            foreach (var row in rows)
+            {
+                var modRef = row.Source.Manifest?.ModReference;
+                var installedVersion = row.Source.Manifest?.Version;
+                if (string.IsNullOrWhiteSpace(modRef) || string.IsNullOrWhiteSpace(installedVersion))
+                    continue;
+
+                checkedCount++;
+                Summary = $"Updates prüfen: {checkedCount} · {row.DisplayName}";
+                try
+                {
+                    var detail = await _api.GetModDetailAsync(modRef);
+                    var latest = detail?.LatestVersion;
+                    if (latest is null || string.IsNullOrWhiteSpace(latest.Version)) continue;
+                    if (IsVersionNewer(latest.Version, installedVersion))
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(() => row.SetUpdateAvailable(latest.Version));
+                        updatedCount++;
+                        Log.Info("Update verfügbar {Mod}: {Old} → {New}",
+                            row.DisplayName, installedVersion, latest.Version);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "Update-Check für {Mod} fehlgeschlagen", modRef);
+                }
+                try { await Task.Delay(250); } catch { break; }
+            }
+            Summary = updatedCount > 0
+                ? $"Updates gefunden: {updatedCount} von {checkedCount} geprüften Mods."
+                : $"Keine Updates. {checkedCount} Mods geprüft.";
+            _host.Notifications.Notify(Summary,
+                updatedCount > 0 ? NotificationLevel.Success : NotificationLevel.Info);
+        }
+        finally { IsCheckingUpdates = false; }
+    }
+
+    /// <summary>Führt Update aus: neue Version downloaden, alte Mod-Ordner
+    /// löschen, neue installieren. ModReference bleibt gleich, also überschreibt
+    /// SmodInstallService.Install den Ordner mit overwrite=true.</summary>
+    [RelayCommand]
+    private async Task UpdateModAsync(SmodInstalledRow? row)
+    {
+        if (row is null || !row.HasUpdate) return;
+        var modRef = row.Source.Manifest?.ModReference;
+        if (string.IsNullOrWhiteSpace(modRef))
+        {
+            _host.Notifications.Notify("Kein ModReference — kann Update nicht auflösen.",
+                NotificationLevel.Warning);
+            return;
+        }
+
+        using var scope = _host.BeginProgress($"Update: {row.DisplayName}");
+        scope.Report(0, "Detail laden …");
+        try
+        {
+            var detail = await _api.GetModDetailAsync(modRef);
+            var latest = detail?.LatestVersion;
+            if (detail is null || latest is null || string.IsNullOrWhiteSpace(latest.Link))
+            {
+                _host.Notifications.Notify(
+                    $"Keine Download-Version für {row.DisplayName} bei ficsit.",
+                    NotificationLevel.Warning);
+                return;
+            }
+
+            scope.Report(0, $"Download v{latest.Version} …");
+            using var http = _host.CreateHttpClient("ficsit-download");
+            var progress = new Progress<double>(f =>
+                scope.Report(f, $"{row.DisplayName} v{latest.Version} · {(int)(f * 100)}%"));
+            var fileName = $"{detail.ModReference}-{latest.Version}.smod";
+            var smodPath = await _installer.DownloadSmodAsync(http, latest.Link,
+                fileName, overwrite: true, progress);
+            _downloadBus.RaiseDownloadsChanged(Path.GetFileName(smodPath));
+
+            scope.Report(1.0, "Install …");
+            _installer.Install(smodPath, overwrite: true);
+            _host.Notifications.Notify(
+                $"Update installiert: {row.DisplayName} → v{latest.Version}",
+                NotificationLevel.Success);
+            _downloadBus.RaiseModInstalled(modRef);
+            Refresh();
+        }
+        catch (Exception ex)
+        {
+            Log.Warn(ex, "Update fehlgeschlagen für {Mod}", modRef);
+            _host.Notifications.Notify($"Update-Fehler: {ex.Message}", NotificationLevel.Error);
+        }
+    }
+
+    private static bool IsVersionNewer(string candidateVersion, string installedVersion)
+    {
+        // ficsit-SemVer: kann suffixes haben (z.B. "1.2.3-beta"). Für den
+        // Compare nur den numerischen Prefix nutzen.
+        var candidate = StripSuffix(candidateVersion.TrimStart('v'));
+        var installed = StripSuffix(installedVersion.TrimStart('v'));
+        if (!Version.TryParse(candidate, out var cV)) return false;
+        if (!Version.TryParse(installed, out var iV)) return false;
+        return cV > iV;
+
+        static string StripSuffix(string s)
+        {
+            var i = s.IndexOfAny(new[] { '-', '+' });
+            return i > 0 ? s.Substring(0, i) : s;
+        }
+    }
+
     public void Dispose() => _watcher?.Dispose();
 }
 
@@ -264,4 +387,24 @@ public sealed partial class SmodInstalledRow : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasCover))]
     private Bitmap? _cover;
     public bool HasCover => Cover is not null;
+
+    /// <summary>Wird von <c>CheckUpdatesAsync</c> gesetzt wenn ficsit eine
+    /// neuere Version anbietet als das lokale Manifest. Steuert das
+    /// Update-Badge + den ⬆ Update-Button in der Row.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UpdateBadgeText))]
+    private bool _hasUpdate;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UpdateBadgeText))]
+    private string? _latestVersion;
+
+    public string UpdateBadgeText =>
+        HasUpdate && LatestVersion is not null ? $"⬆ Update v{LatestVersion}" : "";
+
+    public void SetUpdateAvailable(string catalogVersion)
+    {
+        LatestVersion = catalogVersion;
+        HasUpdate = true;
+    }
 }

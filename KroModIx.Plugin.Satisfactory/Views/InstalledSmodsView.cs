@@ -15,6 +15,15 @@ public sealed class InstalledSmodsView : UserControl
 {
     public InstalledSmodsView()
     {
+        var checkUpdatesBtn = new Button { Name = "CheckUpdatesButton", Content = "🔄  Updates prüfen" };
+        checkUpdatesBtn.Bind(Button.CommandProperty, new Binding(nameof(InstalledSmodsViewModel.CheckUpdatesCommand)));
+        checkUpdatesBtn.Bind(Button.IsEnabledProperty, new Binding(nameof(InstalledSmodsViewModel.IsCheckingUpdates))
+        {
+            Converter = new Avalonia.Data.Converters.FuncValueConverter<bool, bool>(v => !v),
+        });
+        ToolTip.SetTip(checkUpdatesBtn,
+            "Prüft für jeden installierten Mod ob ficsit eine neuere Version anbietet (throttled 250 ms pro Mod).");
+
         var refreshBtn = new Button { Content = "↺  Aktualisieren" };
         refreshBtn.Bind(Button.CommandProperty, new Binding(nameof(InstalledSmodsViewModel.RefreshCommand)));
         var openFolderBtn = new Button { Content = "📂  Mods-Ordner" };
@@ -29,14 +38,17 @@ public sealed class InstalledSmodsView : UserControl
 
         var toolbar = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,*"),
             Margin = new Thickness(0, 0, 0, 10),
         };
-        Grid.SetColumn(refreshBtn, 0);
-        Grid.SetColumn(openFolderBtn, 1);
-        Grid.SetColumn(searchBox, 2);
+        Grid.SetColumn(checkUpdatesBtn, 0);
+        Grid.SetColumn(refreshBtn, 1);
+        Grid.SetColumn(openFolderBtn, 2);
+        Grid.SetColumn(searchBox, 3);
+        checkUpdatesBtn.Margin = new Thickness(0, 0, 6, 0);
         refreshBtn.Margin = new Thickness(0, 0, 6, 0);
         openFolderBtn.Margin = new Thickness(0, 0, 12, 0);
+        toolbar.Children.Add(checkUpdatesBtn);
         toolbar.Children.Add(refreshBtn);
         toolbar.Children.Add(openFolderBtn);
         toolbar.Children.Add(searchBox);
@@ -112,8 +124,29 @@ public sealed class InstalledSmodsView : UserControl
         {
             FontWeight = FontWeight.SemiBold,
             TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
         };
         title.Bind(TextBlock.TextProperty, new Binding(nameof(SmodInstalledRow.DisplayName)));
+
+        // Update-Badge (Kroste-Gold auf schwarz) rechts vom Titel — nur wenn
+        // CheckUpdatesAsync ein Update entdeckt hat.
+        var updateBadge = new Border
+        {
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(8, 1),
+            VerticalAlignment = VerticalAlignment.Center,
+            [!Border.BackgroundProperty] = new DynamicResourceExtension("KrosteGoldBrush"),
+        };
+        var updateBadgeText = new TextBlock
+        {
+            FontSize = 10, FontWeight = FontWeight.SemiBold,
+            Foreground = Brushes.Black,
+        };
+        updateBadgeText.Bind(TextBlock.TextProperty, new Binding(nameof(SmodInstalledRow.UpdateBadgeText)));
+        updateBadge.Child = updateBadgeText;
+        updateBadge.Bind(Border.IsVisibleProperty, new Binding(nameof(SmodInstalledRow.HasUpdate)));
+
+        var titleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { title, updateBadge } };
 
         var modRef = new TextBlock { FontSize = 11 };
         modRef.Classes.Add("muted");
@@ -157,8 +190,14 @@ public sealed class InstalledSmodsView : UserControl
             Spacing = 2,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(14, 0, 0, 0),
-            Children = { title, modRef, meta, shortDesc, errorTb },
+            Children = { titleRow, modRef, meta, shortDesc, errorTb },
         };
+
+        // Update-Button (Accent) nur sichtbar wenn HasUpdate.
+        var updateBtn = new Button { Content = "⬆  Update" };
+        updateBtn.Classes.Add("accent");
+        BindRowCommand(updateBtn, nameof(InstalledSmodsViewModel.UpdateModCommand));
+        updateBtn.Bind(Button.IsVisibleProperty, new Binding(nameof(SmodInstalledRow.HasUpdate)));
 
         var detailBtn = new Button { Content = "🔍  Details" };
         BindRowCommand(detailBtn, nameof(InstalledSmodsViewModel.ShowDetailCommand));
@@ -175,7 +214,7 @@ public sealed class InstalledSmodsView : UserControl
         {
             Spacing = 6,
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { detailBtn, openDirBtn, uninstallBtn },
+            Children = { updateBtn, detailBtn, openDirBtn, uninstallBtn },
         };
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
