@@ -264,8 +264,50 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
                 : "Keine Updates.";
             _host.Notifications.Notify(Summary,
                 updated > 0 ? NotificationLevel.Success : NotificationLevel.Info);
+            OnPropertyChanged(nameof(HasAnyUpdate));
         }
         finally { IsCheckingUpdates = false; }
+    }
+
+    /// <summary>Gibt es mindestens eine Row mit verfügbarem Update? Steuert
+    /// den Enabled-State vom „⬆ Alle updaten"-Toolbar-Button.</summary>
+    public bool HasAnyUpdate => _all.Any(r => r.HasUpdate);
+
+    /// <summary>Bulk-Update aller Mods mit verfügbarem Update. Sequenziell
+    /// (Rate-Limit-Rücksicht). Skill Kernprinzip 6c.</summary>
+    [RelayCommand]
+    private async Task UpdateAllAsync()
+    {
+        var candidates = _all.Where(r => r.HasUpdate).ToList();
+        if (candidates.Count == 0)
+        {
+            _host.Notifications.Notify(
+                "Keine offenen Updates. Erst 🔄 Updates prüfen klicken.",
+                NotificationLevel.Info);
+            return;
+        }
+        using var scope = _host.BeginProgress($"{candidates.Count} Updates …");
+        int done = 0, failed = 0;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            var row = candidates[i];
+            scope.Report((double)i / candidates.Count,
+                $"Update {i + 1}/{candidates.Count}: {row.DisplayName}");
+            try
+            {
+                await UpdateModAsync(row);
+                done++;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(ex, "Bulk-Update fehlgeschlagen für {Mod}", row.DisplayName);
+                failed++;
+            }
+        }
+        _host.Notifications.Notify(
+            failed == 0 ? $"{done} Mod(s) aktualisiert." : $"{done} aktualisiert, {failed} Fehler.",
+            failed == 0 ? NotificationLevel.Success : NotificationLevel.Warning);
+        OnPropertyChanged(nameof(HasAnyUpdate));
     }
 
     /// <summary>Führt Update aus: neue Version downloaden, alte Mod-Ordner

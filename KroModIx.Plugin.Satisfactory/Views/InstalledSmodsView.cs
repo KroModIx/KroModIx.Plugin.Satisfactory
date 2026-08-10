@@ -24,6 +24,15 @@ public sealed class InstalledSmodsView : UserControl
         ToolTip.SetTip(checkUpdatesBtn,
             "Prüft für jeden installierten Mod ob ficsit eine neuere Version anbietet (throttled 250 ms pro Mod).");
 
+        // Skill Kernprinzip 6c: Bulk-Update aller Rows mit HasUpdate. Nur
+        // enabled wenn mindestens ein Update ansteht.
+        var updateAllBtn = new Button { Name = "UpdateAllButton", Content = "⬆  Alle updaten" };
+        updateAllBtn.Classes.Add("accent");
+        updateAllBtn.Bind(Button.CommandProperty, new Binding(nameof(InstalledSmodsViewModel.UpdateAllCommand)));
+        updateAllBtn.Bind(Button.IsEnabledProperty, new Binding(nameof(InstalledSmodsViewModel.HasAnyUpdate)));
+        ToolTip.SetTip(updateAllBtn,
+            "Installiert alle Updates sequenziell (Rate-Limit-Ruecksicht). Erst 'Updates pruefen' klicken damit was zu tun ist.");
+
         var refreshBtn = new Button { Content = "↺  Aktualisieren" };
         refreshBtn.Bind(Button.CommandProperty, new Binding(nameof(InstalledSmodsViewModel.RefreshCommand)));
         var openFolderBtn = new Button { Content = "📂  Mods-Ordner" };
@@ -38,17 +47,20 @@ public sealed class InstalledSmodsView : UserControl
 
         var toolbar = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,*"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,Auto,*"),
             Margin = new Thickness(0, 0, 0, 10),
         };
         Grid.SetColumn(checkUpdatesBtn, 0);
-        Grid.SetColumn(refreshBtn, 1);
-        Grid.SetColumn(openFolderBtn, 2);
-        Grid.SetColumn(searchBox, 3);
+        Grid.SetColumn(updateAllBtn, 1);
+        Grid.SetColumn(refreshBtn, 2);
+        Grid.SetColumn(openFolderBtn, 3);
+        Grid.SetColumn(searchBox, 4);
         checkUpdatesBtn.Margin = new Thickness(0, 0, 6, 0);
+        updateAllBtn.Margin = new Thickness(0, 0, 6, 0);
         refreshBtn.Margin = new Thickness(0, 0, 6, 0);
         openFolderBtn.Margin = new Thickness(0, 0, 12, 0);
         toolbar.Children.Add(checkUpdatesBtn);
+        toolbar.Children.Add(updateAllBtn);
         toolbar.Children.Add(refreshBtn);
         toolbar.Children.Add(openFolderBtn);
         toolbar.Children.Add(searchBox);
