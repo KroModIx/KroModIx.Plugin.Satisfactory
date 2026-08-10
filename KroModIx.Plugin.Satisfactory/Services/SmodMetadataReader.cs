@@ -61,22 +61,80 @@ public sealed class SmodMetadataReader
         return (fresh.Value.Manifest, fresh.Value.Error);
     }
 
-    /// <summary>Liest ein installiertes Mod-Verzeichnis. In der Regel enthält
-    /// jedes <c>&lt;ModsDir&gt;/&lt;ModReference&gt;/</c>-Unterverzeichnis eine
-    /// <c>data.json</c> mit dem Manifest. Wenn nicht vorhanden: null-Manifest.</summary>
+    /// <summary>Liest ein installiertes Mod-Verzeichnis. SMM v3+ speichert
+    /// das Manifest als <c>&lt;ModReference&gt;.uplugin</c> (Unreal-Engine-
+    /// Plugin-Format), ältere Mods hatten <c>data.json</c>. Wir versuchen
+    /// beide Formate in der Reihenfolge .uplugin → data.json.</summary>
     public (SmodManifest? Manifest, string? Error) ReadFromDirectory(string modDir)
     {
         try
         {
+            // 1. SMM v3+: <ModRef>.uplugin (UE-Plugin-Manifest)
+            var upluginFiles = Directory.GetFiles(modDir, "*.uplugin", SearchOption.TopDirectoryOnly);
+            if (upluginFiles.Length > 0)
+                return (ParseUplugin(File.ReadAllText(upluginFiles[0]), Path.GetFileNameWithoutExtension(upluginFiles[0])), null);
+
+            // 2. Legacy/SMM v2: data.json
             var dataJsonPath = Path.Combine(modDir, "data.json");
-            if (!File.Exists(dataJsonPath))
-                return (null, "data.json nicht im Mod-Ordner gefunden");
-            return (ParseDataJson(File.ReadAllText(dataJsonPath)), null);
+            if (File.Exists(dataJsonPath))
+                return (ParseDataJson(File.ReadAllText(dataJsonPath)), null);
+
+            return (null, "Weder .uplugin noch data.json im Mod-Ordner gefunden");
         }
         catch (Exception ex)
         {
-            Log.Warn(ex, "data.json-Read fehlgeschlagen: {Dir}", modDir);
+            Log.Warn(ex, "Manifest-Read fehlgeschlagen: {Dir}", modDir);
             return (null, ex.Message);
+        }
+    }
+
+    /// <summary>Parst ein UE-Plugin-Manifest (.uplugin, JSON). Feld-Mapping auf
+    /// unsere <see cref="SmodManifest"/>-Struktur: <c>FriendlyName</c>→Name,
+    /// <c>VersionName</c>/<c>SemVersion</c>→Version, <c>CreatedBy</c>→im
+    /// Description-Feld gebündelt (SmodManifest hat kein Author-Feld — das
+    /// kommt bei installierten Mods aus dem ficsit-API-Enrichment).</summary>
+    private static SmodManifest? ParseUplugin(string json, string fallbackModRef)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var friendlyName = root.TryGetProperty("FriendlyName", out var fn) ? (fn.GetString() ?? "") : "";
+            var version = root.TryGetProperty("SemVersion", out var sv) ? (sv.GetString() ?? "")
+                        : root.TryGetProperty("VersionName", out var vn) ? (vn.GetString() ?? "") : "";
+            var description = root.TryGetProperty("Description", out var d) ? (d.GetString() ?? "") : "";
+            var createdBy = root.TryGetProperty("CreatedBy", out var cb) ? (cb.GetString() ?? "") : "";
+            var gameVersion = root.TryGetProperty("GameVersion", out var gv) ? (gv.GetString() ?? "") : "";
+            // SML-Version aus Plugins[].SemVersion — nur informativ.
+            var smlVersion = "";
+            if (root.TryGetProperty("Plugins", out var plugins) && plugins.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var p in plugins.EnumerateArray())
+                {
+                    if (p.TryGetProperty("Name", out var pn) && pn.GetString() == "SML"
+                        && p.TryGetProperty("SemVersion", out var psv))
+                    {
+                        smlVersion = psv.GetString() ?? "";
+                        break;
+                    }
+                }
+            }
+
+            return new SmodManifest(
+                ModReference: string.IsNullOrWhiteSpace(fallbackModRef) ? friendlyName : fallbackModRef,
+                Name: string.IsNullOrWhiteSpace(friendlyName) ? fallbackModRef : friendlyName,
+                Version: version,
+                Description: string.IsNullOrWhiteSpace(description) && !string.IsNullOrWhiteSpace(createdBy)
+                    ? $"von {createdBy}"
+                    : description,
+                SmlVersion: smlVersion,
+                GameVersion: gameVersion,
+                Objects: new List<string>());
+        }
+        catch (Exception ex)
+        {
+            Log.Warn(ex, ".uplugin-Parse fehlgeschlagen");
+            return null;
         }
     }
 

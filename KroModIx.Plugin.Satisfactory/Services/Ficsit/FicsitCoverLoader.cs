@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -10,36 +11,43 @@ using SixLabors.ImageSharp.Formats.Png;
 namespace KroModIx.Plugin.Satisfactory.Services.Ficsit;
 
 /// <summary>Lädt ficsit-Cover-URLs (typischerweise .webp) in Avalonia-
-/// <see cref="Bitmap"/>. Der Workflow:
+/// <see cref="Bitmap"/>. WebP-Support via SixLabors.ImageSharp (Avalonia/Skia
+/// versteht .webp nicht standardmäßig — direktes <c>new Bitmap(webpStream)</c>
+/// wirft <c>ArgumentException: Unable to load bitmap</c>).
 ///
-/// <list type="number">
-/// <item>URL herunterladen (bytes).</item>
-/// <item>Falls die Bytes ein von Skia unterstütztes Format sind (PNG/JPG):
-///   direkt in <see cref="Bitmap"/> laden.</item>
-/// <item>Sonst (WebP): via SixLabors.ImageSharp decoden + als PNG
-///   re-encoden, dann Skia-Bitmap.</item>
-/// </list>
-///
-/// <para>Warum? Avalonia/Skia versteht WebP standardmäßig nicht — direkter
-/// <c>new Bitmap(webpStream)</c> wirft <c>ArgumentException: Unable to load
-/// bitmap</c>. ImageSharp ist Managed-C# und kennt WebP nativ.</para>
-///
-/// <para>Cache: die konvertierten PNGs liegen im gemeinsamen
-/// <c>FicsitCoverDir</c>. Die Original-URL-Extension (.webp/.png/.jpg) wird
-/// im Cache-Key ignoriert — wir speichern immer als .png weil das der
-/// Ziel-Format ist.</para>
+/// <para><b>In-Flight-Deduplication:</b> beim App-Start starten Katalog-,
+/// Downloads- und Installed-VMs parallel und wollen alle dasselbe Cover für
+/// denselben installierten Mod. Ohne Dedup → 3–5× paralleler Download +
+/// File-Write-Contention (<c>IOException: file being used by another process</c>).
+/// <see cref="ConcurrentDictionary{TKey, TValue}"/> + <see cref="Lazy{T}"/>
+/// stellt sicher dass pro <c>modId</c> nur EIN Task läuft; die anderen warten
+/// auf dessen Ergebnis. Nach Abschluss bleibt das Ergebnis im Cache — nächste
+/// Anfragen sind instant.</para>
 /// </summary>
 public static class FicsitCoverLoader
 {
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
-    /// <summary>Lädt (mit Disk-Cache) ein Cover zu einem Mod. Nur der Bitmap-
-    /// Decode läuft off-thread — Aufrufer muss aber die Property-Zuweisung
-    /// (<c>row.Cover = bmp</c>) selbst auf UI-Thread machen.</summary>
-    public static async Task<Bitmap?> LoadAsync(HttpClient http, string url,
+    private static readonly ConcurrentDictionary<string, Lazy<Task<Bitmap?>>> _inFlight
+        = new(StringComparer.Ordinal);
+
+    /// <summary>Lädt (mit Disk- + In-Memory-Dedup) ein Cover zu einem Mod.
+    /// Aufrufer muss die Property-Zuweisung selbst auf UI-Thread machen.</summary>
+    public static Task<Bitmap?> LoadAsync(HttpClient http, string url,
         string modId, string coverCacheDir)
     {
-        if (string.IsNullOrEmpty(url)) return null;
+        if (string.IsNullOrEmpty(url)) return Task.FromResult<Bitmap?>(null);
+
+        var lazy = _inFlight.GetOrAdd(modId, _ => new Lazy<Task<Bitmap?>>(
+            () => LoadInternalAsync(http, url, modId, coverCacheDir),
+            LazyThreadSafetyMode.ExecutionAndPublication));
+
+        return lazy.Value;
+    }
+
+    private static async Task<Bitmap?> LoadInternalAsync(HttpClient http, string url,
+        string modId, string coverCacheDir)
+    {
         try
         {
             var localPngPath = Path.Combine(coverCacheDir, $"{modId}.png");
@@ -69,14 +77,19 @@ public static class FicsitCoverLoader
 
     /// <summary>Konvertiert beliebiges von ImageSharp verstandenes Format
     /// (WebP, PNG, JPG, BMP, GIF, TIFF) nach PNG. Passiert off-Thread damit
-    /// der Decode nicht den UI-Thread blockiert.</summary>
+    /// der Decode nicht den UI-Thread blockiert. Atomarer File-Write via
+    /// <c>.tmp</c> + <c>File.Move</c> vermeidet Half-Written-PNGs beim
+    /// Prozess-Abbruch mid-Download.</summary>
     private static async Task ConvertToPngAsync(byte[] source, string targetPngPath)
     {
         await Task.Run(() =>
         {
             using var image = SixLabors.ImageSharp.Image.Load(source);
-            using var output = File.Create(targetPngPath);
-            image.Save(output, new PngEncoder());
+            var tmp = targetPngPath + ".tmp";
+            using (var output = File.Create(tmp))
+                image.Save(output, new PngEncoder());
+            if (File.Exists(targetPngPath)) File.Delete(targetPngPath);
+            File.Move(tmp, targetPngPath);
         });
     }
 }
