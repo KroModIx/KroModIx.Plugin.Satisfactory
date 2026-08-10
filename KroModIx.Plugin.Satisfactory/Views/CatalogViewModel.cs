@@ -120,24 +120,11 @@ public sealed partial class CatalogViewModel : ObservableObject
     {
         try
         {
-            var localPath = Path.Combine(_paths.FicsitCoverDir, $"{row.Source.Id}.png");
-            if (!File.Exists(localPath))
-            {
-                using var http = _host.CreateHttpClient("ficsit-covers");
-                var bytes = await http.GetByteArrayAsync(row.Source.Logo);
-                Directory.CreateDirectory(_paths.FicsitCoverDir);
-                await File.WriteAllBytesAsync(localPath, bytes);
-            }
-            var bmp = await Task.Run(() =>
-            {
-                using var s = File.OpenRead(localPath);
-                return new Bitmap(s);
-            });
+            using var http = _host.CreateHttpClient("ficsit-covers");
+            var bmp = await FicsitCoverLoader.LoadAsync(http, row.Source.Logo,
+                row.Source.Id, _paths.FicsitCoverDir);
+            if (bmp is null) return;
             await Dispatcher.UIThread.InvokeAsync(() => row.Cover = bmp);
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "ficsit-Cover-Load fehlgeschlagen: {Url}", row.Source.Logo);
         }
         finally { _coverGate.Release(); }
     }

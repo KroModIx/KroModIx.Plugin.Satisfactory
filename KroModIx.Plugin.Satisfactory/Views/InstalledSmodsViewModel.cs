@@ -172,27 +172,10 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
 
     private async Task LoadCoverAsync(SmodInstalledRow row, string url, string modId)
     {
-        try
-        {
-            var localPath = Path.Combine(_paths.FicsitCoverDir, $"{modId}.png");
-            if (!File.Exists(localPath))
-            {
-                using var http = _host.CreateHttpClient("ficsit-covers");
-                var bytes = await http.GetByteArrayAsync(url);
-                Directory.CreateDirectory(_paths.FicsitCoverDir);
-                await File.WriteAllBytesAsync(localPath, bytes);
-            }
-            var bmp = await Task.Run(() =>
-            {
-                using var s = File.OpenRead(localPath);
-                return new Bitmap(s);
-            });
-            await Dispatcher.UIThread.InvokeAsync(() => row.Cover = bmp);
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "Installed-Cover-Load fehlgeschlagen für {Id}", modId);
-        }
+        using var http = _host.CreateHttpClient("ficsit-covers");
+        var bmp = await FicsitCoverLoader.LoadAsync(http, url, modId, _paths.FicsitCoverDir);
+        if (bmp is null) return;
+        await Dispatcher.UIThread.InvokeAsync(() => row.Cover = bmp);
     }
 
     [RelayCommand]

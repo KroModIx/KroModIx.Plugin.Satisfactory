@@ -84,8 +84,12 @@ public sealed class FicsitApiClient : IDisposable
     public async Task<FicsitModDetail?> GetModDetailAsync(string modIdOrRef,
         CancellationToken ct = default)
     {
+        // WICHTIG: ficsit-Schema erwartet String! als Typ für $modId, nicht
+        // ModID! — obwohl `modIdOrReference` beides akzeptiert (Id oder
+        // mod_reference). ModID! wirft GRAPHQL_VALIDATION_FAILED (HTTP 422).
+        // Referenz: satisfactorymodding/ficsit-cli/ficsit/queries/mod.graphql
         const string query = """
-            query Mod($modId: ModID!) {
+            query Mod($modId: String!) {
               mod: getModByIdOrReference(modIdOrReference: $modId) {
                 id
                 mod_reference
