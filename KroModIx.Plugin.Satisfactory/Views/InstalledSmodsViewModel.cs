@@ -313,6 +313,9 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
                 NotificationLevel.Success);
             _downloadBus.RaiseModInstalled(modRef);
             Refresh();
+
+            // Skill Kernprinzip 6b: Re-Check triggern damit Sidebar-Badge sinkt.
+            _ = _updatesChecker.CheckAsync();
         }
         catch (Exception ex)
         {

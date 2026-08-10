@@ -78,8 +78,6 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
         // Auto-Check der installierten Mod-Updates im Hintergrund — damit der
         // grüne ↑-Badge auf der Sidebar-Kachel sofort nach Plugin-Load sichtbar
         // ist ohne dass der User erst „Updates prüfen" im Installiert-Tab klickt.
-        // 15 s Delay: gibt der UI Zeit sichtbar zu werden, und dem Katalog-Load
-        // Zeit fertig zu werden (der ist wichtiger für den ersten Eindruck).
         _ = Task.Run(async () =>
         {
             await Task.Delay(TimeSpan.FromSeconds(15), ct);
@@ -89,6 +87,23 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
                 catch (Exception ex) { host.Logger.Debug(ex, "Auto-Update-Check fehlgeschlagen"); }
             }
         }, ct);
+
+        // Skill Kernprinzip 6b: nach JEDEM Install/Update (Row-Install,
+        // Bulk-Install, Update-Row) den Checker re-triggern — sonst bleibt der
+        // Sidebar-Kachel-Badge auf altem Zählerstand hängen. DownloadEventBus.
+        // ModInstalled ist das zentrale Signal für „was änderte sich im Mods-
+        // Ordner" — hier abfangen erspart Duplicate-Wiring in jedem VM.
+        _downloadBus.ModInstalled += (_, _) =>
+        {
+            _ = Task.Run(async () =>
+            {
+                foreach (var checker in _updateCheckers.Values)
+                {
+                    try { await checker.CheckAsync(); }
+                    catch (Exception ex) { host.Logger.Debug(ex, "Post-Install Update-Check fehlgeschlagen"); }
+                }
+            });
+        };
 
         return Task.CompletedTask;
     }
