@@ -31,12 +31,14 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
     private readonly IHostServices _host;
     private readonly FicsitApiClient _api;
     private readonly FicsitSettingsService _ficsitSettings;
+    private readonly InstalledUpdatesChecker _updatesChecker;
 
     private FileSystemWatcher? _watcher;
 
     public InstalledSmodsViewModel(SmodInstallService installer, SatisfactoryPaths paths,
         DownloadEventBus downloadBus, IHostServices host,
-        FicsitApiClient api, FicsitSettingsService ficsitSettings)
+        FicsitApiClient api, FicsitSettingsService ficsitSettings,
+        InstalledUpdatesChecker updatesChecker)
     {
         _installer = installer;
         _paths = paths;
@@ -44,6 +46,7 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
         _host = host;
         _api = api;
         _ficsitSettings = ficsitSettings;
+        _updatesChecker = updatesChecker;
         ModsDir = installer.ModsDir;
         SetupWatcher();
         RefreshCommand.Execute(null);
@@ -237,11 +240,10 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
 
     [ObservableProperty] private bool _isCheckingUpdates;
 
-    /// <summary>Prüft für jeden installierten Mod ob ficsit eine neuere
-    /// Version anbietet. Throttled 250 ms pro Mod. Setzt <c>HasUpdate</c> +
-    /// <c>LatestVersion</c> auf jeder Row wo Update verfügbar. Kann nur
-    /// laufen wenn Row eine <c>ModReference</c> hat (aus .uplugin).
-    /// Analog LS25-<c>InstalledModsViewModel.CheckUpdatesAsync</c>.</summary>
+    /// <summary>Delegiert an <see cref="InstalledUpdatesChecker"/>. Der Checker
+    /// füttert nach dem Run automatisch den <see cref="InstalledUpdatesTracker"/>
+    /// (persistiert für Sidebar-Kachel-Badge). Der <c>onUpdateFound</c>-
+    /// Callback aktualisiert die Row-Badges + Update-Buttons im UI.</summary>
     [RelayCommand]
     private async Task CheckUpdatesAsync()
     {
@@ -249,41 +251,19 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
         IsCheckingUpdates = true;
         try
         {
-            var rows = _all.ToList();
-            int checkedCount = 0, updatedCount = 0;
-            foreach (var row in rows)
-            {
-                var modRef = row.Source.Manifest?.ModReference;
-                var installedVersion = row.Source.Manifest?.Version;
-                if (string.IsNullOrWhiteSpace(modRef) || string.IsNullOrWhiteSpace(installedVersion))
-                    continue;
-
-                checkedCount++;
-                Summary = $"Updates prüfen: {checkedCount} · {row.DisplayName}";
-                try
+            var updated = await _updatesChecker.CheckAsync(
+                onUpdateFound: (modRef, oldVer, newVer) =>
                 {
-                    var detail = await _api.GetModDetailAsync(modRef);
-                    var latest = detail?.LatestVersion;
-                    if (latest is null || string.IsNullOrWhiteSpace(latest.Version)) continue;
-                    if (IsVersionNewer(latest.Version, installedVersion))
-                    {
-                        await Dispatcher.UIThread.InvokeAsync(() => row.SetUpdateAvailable(latest.Version));
-                        updatedCount++;
-                        Log.Info("Update verfügbar {Mod}: {Old} → {New}",
-                            row.DisplayName, installedVersion, latest.Version);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Debug(ex, "Update-Check für {Mod} fehlgeschlagen", modRef);
-                }
-                try { await Task.Delay(250); } catch { break; }
-            }
-            Summary = updatedCount > 0
-                ? $"Updates gefunden: {updatedCount} von {checkedCount} geprüften Mods."
-                : $"Keine Updates. {checkedCount} Mods geprüft.";
+                    var row = _all.FirstOrDefault(r => r.Source.Manifest?.ModReference == modRef);
+                    if (row is not null)
+                        Dispatcher.UIThread.Post(() => row.SetUpdateAvailable(newVer));
+                },
+                onProgress: msg => Summary = msg);
+            Summary = updated > 0
+                ? $"Updates gefunden: {updated} Mod(s)."
+                : "Keine Updates.";
             _host.Notifications.Notify(Summary,
-                updatedCount > 0 ? NotificationLevel.Success : NotificationLevel.Info);
+                updated > 0 ? NotificationLevel.Success : NotificationLevel.Info);
         }
         finally { IsCheckingUpdates = false; }
     }
@@ -338,23 +318,6 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
         {
             Log.Warn(ex, "Update fehlgeschlagen für {Mod}", modRef);
             _host.Notifications.Notify($"Update-Fehler: {ex.Message}", NotificationLevel.Error);
-        }
-    }
-
-    private static bool IsVersionNewer(string candidateVersion, string installedVersion)
-    {
-        // ficsit-SemVer: kann suffixes haben (z.B. "1.2.3-beta"). Für den
-        // Compare nur den numerischen Prefix nutzen.
-        var candidate = StripSuffix(candidateVersion.TrimStart('v'));
-        var installed = StripSuffix(installedVersion.TrimStart('v'));
-        if (!Version.TryParse(candidate, out var cV)) return false;
-        if (!Version.TryParse(installed, out var iV)) return false;
-        return cV > iV;
-
-        static string StripSuffix(string s)
-        {
-            var i = s.IndexOfAny(new[] { '-', '+' });
-            return i > 0 ? s.Substring(0, i) : s;
         }
     }
 
