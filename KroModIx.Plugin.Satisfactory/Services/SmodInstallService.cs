@@ -140,7 +140,14 @@ public sealed class SmodInstallService
     }
 
     /// <summary>Streamed einen .smod-Download in den Downloads-Ordner. Progress-
-    /// Callback bekommt Fraction 0..1. Analog zu Icarus-<c>DownloadPakAsync</c>.</summary>
+    /// Callback bekommt Fraction 0..1. Analog zu Icarus-<c>DownloadPakAsync</c>.
+    ///
+    /// <para><b>URL-Handling:</b> ficsit-API liefert <c>version.link</c> als
+    /// relativen Pfad wie <c>/v1/version/&lt;id&gt;/Windows/download</c>. Wir
+    /// prefixen <c>https://api.ficsit.app</c> wenn's nicht schon absolute
+    /// URL ist. Auf Linux via Steam-Proton läuft die Windows-Variante
+    /// (Satisfactory ist Windows-only; Proton übersetzt) — deshalb Windows-
+    /// Link.</para></summary>
     public async Task<string> DownloadSmodAsync(HttpClient http, string url,
         string fileName, bool overwrite, IProgress<double>? progress = null)
     {
@@ -151,7 +158,12 @@ public sealed class SmodInstallService
         if (File.Exists(target) && !overwrite)
             throw new IOException($"Download existiert bereits: {fileName}");
 
-        using var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+        var absoluteUrl = url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                          url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            ? url
+            : "https://api.ficsit.app" + (url.StartsWith('/') ? url : "/" + url);
+
+        using var resp = await http.GetAsync(absoluteUrl, HttpCompletionOption.ResponseHeadersRead);
         resp.EnsureSuccessStatusCode();
         var total = resp.Content.Headers.ContentLength;
         var tmp = target + ".part";
