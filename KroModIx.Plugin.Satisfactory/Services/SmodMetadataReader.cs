@@ -145,18 +145,35 @@ public sealed class SmodMetadataReader
         try
         {
             using var archive = ZipFile.OpenRead(smodPath);
-            var dataEntry = archive.GetEntry("data.json");
-            if (dataEntry is null)
-                return new CacheEntry(mtime, size, null, "data.json nicht in der .smod-ZIP gefunden");
 
-            using var stream = dataEntry.Open();
-            using var reader = new StreamReader(stream);
-            var json = reader.ReadToEnd();
-            return new CacheEntry(mtime, size, ParseDataJson(json), null);
+            // SMM v3+: <ModRef>.uplugin an der ZIP-Root (Unreal-Plugin-Manifest).
+            var upluginEntry = archive.Entries.FirstOrDefault(e =>
+                !e.FullName.Contains('/') &&
+                e.FullName.EndsWith(".uplugin", StringComparison.OrdinalIgnoreCase));
+            if (upluginEntry is not null)
+            {
+                using var stream = upluginEntry.Open();
+                using var reader = new StreamReader(stream);
+                var json = reader.ReadToEnd();
+                var modRef = Path.GetFileNameWithoutExtension(upluginEntry.FullName);
+                return new CacheEntry(mtime, size, ParseUplugin(json, modRef), null);
+            }
+
+            // Legacy/SMM v2: data.json an der ZIP-Root.
+            var dataEntry = archive.GetEntry("data.json");
+            if (dataEntry is not null)
+            {
+                using var stream = dataEntry.Open();
+                using var reader = new StreamReader(stream);
+                var json = reader.ReadToEnd();
+                return new CacheEntry(mtime, size, ParseDataJson(json), null);
+            }
+
+            return new CacheEntry(mtime, size, null, "Weder .uplugin noch data.json in der .smod-ZIP gefunden");
         }
         catch (Exception ex)
         {
-            Log.Warn(ex, "Konnte data.json nicht lesen: {Path}", smodPath);
+            Log.Warn(ex, "Konnte Manifest nicht lesen: {Path}", smodPath);
             return new CacheEntry(mtime, size, null, ex.Message);
         }
     }
