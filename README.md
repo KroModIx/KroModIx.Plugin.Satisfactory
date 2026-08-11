@@ -1,40 +1,70 @@
 # KroModIx.Plugin.Satisfactory
 
 [![CI](https://github.com/KroModIx/KroModIx.Plugin.Satisfactory/actions/workflows/ci.yml/badge.svg)](https://github.com/KroModIx/KroModIx.Plugin.Satisfactory/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/KroModIx/KroModIx.Plugin.Satisfactory)](https://github.com/KroModIx/KroModIx.Plugin.Satisfactory/releases)
 
-Satisfactory (Coffee Stain) Mod-Manager als Plugin für den [KroModIx](https://github.com/KroModIx/KroModIx).
+**Satisfactory** (Coffee Stain) Mod-Manager als Plugin für den
+[KroModIx](https://github.com/KroModIx/KroModIx). Nutzt die offene
+[ficsit.app](https://ficsit.app)-GraphQL-API — kein Login, kein API-Key,
+Direct-Download für alle User.
 
 ## Ziel-Spiel
 
-- **Satisfactory** (Steam App-ID 526870)
-  - Mods-Ordner: `<Satisfactory-Install>/FactoryGame/Mods/<ModReference>/`
-  - Auf Linux via Steam Proton — kein Wine-Prefix-Umweg, Mods bleiben im
-    Install-Ordner.
+**Satisfactory** — Steam AppId 526870.
 
-## Features (v0.1.0)
+- Mods-Ordner: `<Satisfactory-Install>/FactoryGame/Mods/<ModReference>/`
+- Auf Linux via Steam-Proton — kein Wine-Prefix-Umweg, Mods bleiben im
+  Steam-Install-Ordner.
 
-- **Tab „Katalog"** — ficsit.app-Mods im 24-h-Cache. Rows mit Cover, Popularity,
-  Downloads, View-Count, Update-Datum. Suche über Name/mod_reference/Beschreibung.
-  **Doppelklick oder 🔍-Button öffnet Detail-Dialog** mit vollständiger
-  Markdown-Beschreibung, Autoren, Kompatibilität (EA/EXP), Source-Link und
-  KI-Zusammenfassung (via Host-KI-Provider). **⬇ Download-Button** lädt die
-  neueste .smod direkt in den Downloads-Ordner (kein OAuth nötig).
-- **Tab „Downloads"** — Heruntergeladene .smod-Files mit Cover-Enrichment via
-  ficsit-API. Auto-Refresh via FileSystemWatcher. Install-Button entpackt
-  nach `FactoryGame/Mods/<ModReference>/`, Delete-Button.
-- **Tab „Installiert"** — Mod-Ordner im Satisfactory-Install mit
-  data.json-Metadata + Enrichment (Autoren, Beschreibung, Cover). Detail-
-  Dialog per Doppelklick, Ordner-öffnen, Deinstallieren.
-- **Tab „Einstellungen"** — Katalog-Cache-Alter, Standard-Sortierung.
-  Kein API-Key nötig (ficsit-API ist offen).
-- **IUpdateNotifier**: grüner ↑-Badge auf der Satisfactory-Kachel bei neuen
-  Katalog-Einträgen.
+## Features (v0.5.0)
+
+### Katalog-Tab
+- ficsit.app-Mods im 24-h-Cache (~1500 Einträge)
+- Rows mit Cover (WebP → PNG via ImageSharp), Popularity, Downloads, Views,
+  Update-Datum
+- Suche über Name / mod_reference / Beschreibung
+- Doppelklick öffnet Detail-Dialog mit Markdown-Beschreibung, Autoren,
+  Kompatibilität (EA/EXP), Source-Link, **KI-Zusammenfassung**
+- **⬇ Download** lädt die neueste `.smod` direkt in den Downloads-Ordner
+
+### Downloads-Tab
+- Alle heruntergeladenen `.smod`-Files mit Cover + Autoren + Version +
+  Beschreibung (via ficsit-Enrichment)
+- **📥 Alle installieren** — Bulk-Install-Button
+- Pro Row: Installieren + 🔍 Details + Löschen
+- Auto-Refresh via FileSystemWatcher
+
+### Installiert-Tab
+- Mod-Ordner in `FactoryGame/Mods/` mit `.uplugin`-Manifest-Read (SMM v3-
+  Konvention) und Fallback auf `data.json` (Legacy)
+- Cover + Autoren + Beschreibung via ficsit-Enrichment
+- **🔄 Updates prüfen** — vergleicht Manifest-Version mit
+  `getModByIdOrReference.latest_version`
+- **⬆ Alle updaten** — Bulk-Update aller Mods mit verfügbarem Update,
+  sequenziell (throttled 250 ms)
+- **🔍 Details** per Doppelklick oder Button
+- Ordner-öffnen, Deinstallieren
+
+### Einstellungen-Tab
+- Katalog-Cache-Refresh-Intervall (Default 24 h)
+- Standard-Sortierung (popularity / hotness / downloads / views / update-date)
+- Kein API-Key nötig
+
+### IUpdateNotifier
+Grüner ↑-Badge auf der Satisfactory-Kachel bei neuen ficsit-Katalog-
+Einträgen UND bei Updates für installierte Mods (Auto-Check läuft 15 s
+nach Plugin-Load im Hintergrund).
 
 ## API
 
-Nutzt die öffentliche **ficsit.app GraphQL-API v2** (`https://api.ficsit.app/v2/query`).
-Kein OAuth für Read-Queries, kein API-Key erforderlich. Direct-Download-URLs
-funktionieren für alle User.
+Nutzt die öffentliche **ficsit.app GraphQL-API v2**
+(`https://api.ficsit.app/v2/query`). Kein OAuth für Read-Queries, kein
+API-Key erforderlich. Direct-Download-URLs (`version.link`) funktionieren
+für alle User.
+
+Auf Linux via Steam-Proton läuft die Windows-Variante der Mods (Satisfactory
+ist nativ Windows-only; Proton übersetzt) — deshalb `/Windows/download`
+als Direct-URL.
 
 ## Installation
 
@@ -44,9 +74,18 @@ das ZIP entpacken nach:
 - **Linux:** `~/.config/KroModIx/plugins/kroste.satisfactory/`
 - **Windows:** `%APPDATA%\KroModIx\plugins\kroste.satisfactory\`
 
-Alternativ: 1-Klick-Install über die Install-Karte in der KroModIx-Sidebar
-(Host v0.3+).
+Alternativ: 1-Klick-Install über die Install-Karte in der KroModIx-Sidebar.
+
+## Referenz
+
+- **SMM (Satisfactory Mod Manager):** [`satisfactorymodding/SatisfactoryModManager`](https://github.com/satisfactorymodding/SatisfactoryModManager)
+- **ficsit-cli:** [`satisfactorymodding/ficsit-cli`](https://github.com/satisfactorymodding/ficsit-cli)
+  — Referenz für die GraphQL-Queries
 
 ## Lizenz
 
-MIT.
+MIT — siehe [LICENSE](LICENSE).
+
+---
+
+☕ [buymeacoffee.com/kroste](https://buymeacoffee.com/kroste)
