@@ -16,7 +16,7 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
     public PluginMetadata Metadata { get; } = new(
         Id: "kroste.satisfactory",
         DisplayName: "Satisfactory Mod-Manager",
-        Version: "0.1.0",
+        Version: "0.5.1",
         Author: "Kroste",
         Description: "Mod-Manager für Satisfactory (Coffee Stain). ficsit.app-Katalog " +
             "via GraphQL, .smod-Direct-Download, Install in FactoryGame/Mods. Kroste-" +
@@ -135,47 +135,31 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
 
     // ---- IUpdateNotifier ----
 
-    /// <summary>Addiert zwei Signale für den Sidebar-Kachel-Badge:
-    /// <list type="number">
-    /// <item><b>Neue Katalog-Einträge</b> seit letztem Katalog-Tab-Besuch
-    ///   (<see cref="FicsitUpdateTracker"/>) — Community-News-Signal.</item>
-    /// <item><b>Installierte Mods mit verfügbarem Update</b>
-    ///   (<see cref="InstalledUpdatesTracker"/>) — actionable Signal aus
-    ///   <c>InstalledUpdatesChecker.CheckAsync</c>.</item>
-    /// </list>
-    /// Beide Zahlen summiert im Badge, kombinierter Summary-Text.</summary>
-    public async Task<IReadOnlyList<GameUpdateInfo>> GetPendingUpdatesAsync(CancellationToken cancellationToken)
+    /// <summary>Meldet ausstehende Mod-Updates fuer INSTALLIERTE Mods
+    /// (<see cref="InstalledUpdatesTracker"/>). Neue Katalog-Eintraege
+    /// zaehlen bewusst NICHT als Badge — der gruene ↑-Pfeil ist ein
+    /// Actionable-Signal, kein Community-News-Signal.</summary>
+    public Task<IReadOnlyList<GameUpdateInfo>> GetPendingUpdatesAsync(CancellationToken cancellationToken)
     {
-        if (_ficsitCatalog is null || _updateTracker is null
-            || _installedUpdatesTracker is null || _activatedGames.Count == 0)
-            return Array.Empty<GameUpdateInfo>();
+        if (_installedUpdatesTracker is null || _activatedGames.Count == 0)
+            return Task.FromResult<IReadOnlyList<GameUpdateInfo>>(Array.Empty<GameUpdateInfo>());
 
-        try
-        {
-            var snapshot = await _ficsitCatalog.LoadAsync(forceRefresh: false, cancellationToken);
-            var catalogCount = _updateTracker.CountNewSince(snapshot);
-            var installedCount = _installedUpdatesTracker.PendingCount;
-            var totalCount = catalogCount + installedCount;
-            if (totalCount <= 0) return Array.Empty<GameUpdateInfo>();
+        // Nur echte Mod-Updates fuer INSTALLIERTE Mods zaehlen. Neue
+        // ficsit-Katalog-Eintraege waren bis v0.5 auch im Badge — das ist
+        // aber ein Community-News-Signal, nicht Actionable. Der gruene ↑-
+        // Pfeil steht fuer „User sollte was updaten".
+        var installedCount = _installedUpdatesTracker.PendingCount;
+        if (installedCount <= 0)
+            return Task.FromResult<IReadOnlyList<GameUpdateInfo>>(Array.Empty<GameUpdateInfo>());
 
-            var parts = new System.Collections.Generic.List<string>(2);
-            if (installedCount > 0)
-                parts.Add(_installedUpdatesTracker.Summary is { Length: > 0 } s
-                    ? s
-                    : $"{installedCount} Mod-Update(s) verfügbar");
-            if (catalogCount > 0)
-                parts.Add($"{catalogCount} neue ficsit-Katalog-Einträge");
-            var summary = string.Join(" · ", parts);
-            return _activatedGames
-                .Where(g => g.Target.SteamAppId is int)
-                .Select(g => new GameUpdateInfo(g.Target.SteamAppId!.Value, totalCount, summary))
-                .ToList();
-        }
-        catch (Exception ex)
-        {
-            _host?.Logger.Debug(ex, "Satisfactory IUpdateNotifier fehlgeschlagen — 0 Updates");
-            return Array.Empty<GameUpdateInfo>();
-        }
+        var summary = _installedUpdatesTracker.Summary is { Length: > 0 } s
+            ? s
+            : $"{installedCount} Mod-Update(s) verfügbar";
+        var result = _activatedGames
+            .Where(g => g.Target.SteamAppId is int)
+            .Select(g => new GameUpdateInfo(g.Target.SteamAppId!.Value, installedCount, summary))
+            .ToList();
+        return Task.FromResult<IReadOnlyList<GameUpdateInfo>>(result);
     }
 
     // ---- Tab-Contributions ----
