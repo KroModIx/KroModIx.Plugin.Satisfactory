@@ -69,7 +69,7 @@ public sealed partial class ModDetailViewModel : ObservableObject
         UpdatedText = initialUpdated ?? "";
         DownloadsText = initialDownloads > 0 ? $"⬇ {initialDownloads:N0}" : "";
         Cover = initialCover;
-        Description = "Detail-Beschreibung wird geladen …";
+        Description = Strings.T("status.detail_desc_placeholder");
 
         _ = LoadDetailAsync();
     }
@@ -83,7 +83,7 @@ public sealed partial class ModDetailViewModel : ObservableObject
     [ObservableProperty] private string _compatibilityText = "";
     [ObservableProperty] private string _sourceUrl = "";
     [ObservableProperty] private string _description = "";
-    [ObservableProperty] private string _statusText = "Detail wird geladen …";
+    [ObservableProperty] private string _statusText = Strings.T("status.detail_loading");
     [ObservableProperty] private bool _isLoading = true;
     [ObservableProperty] private Bitmap? _cover;
 
@@ -111,8 +111,8 @@ public sealed partial class ModDetailViewModel : ObservableObject
             var detail = await _api.GetModDetailAsync(_modIdOrRef);
             if (detail is null)
             {
-                Description = "Detail konnte nicht geladen werden (API-Fehler).";
-                StatusText = "Fehler beim Laden.";
+                Description = Strings.T("status.detail_load_failed");
+                StatusText = Strings.T("status.detail_load_error");
                 return;
             }
 
@@ -128,7 +128,7 @@ public sealed partial class ModDetailViewModel : ObservableObject
             Description = HtmlStrip.ToPlainText(detail.FullDescription);
             if (string.IsNullOrWhiteSpace(Description))
                 Description = string.IsNullOrWhiteSpace(detail.ShortDescription)
-                    ? "Keine Beschreibung im Detail-Endpoint."
+                    ? Strings.T("status.detail_no_desc")
                     : detail.ShortDescription;
 
             var latest = detail.LatestVersion;
@@ -137,18 +137,18 @@ public sealed partial class ModDetailViewModel : ObservableObject
                 Version = latest.Version.StartsWith("v") ? latest.Version : "v" + latest.Version;
                 _downloadLink = latest.Link;
                 _downloadFileName = $"{detail.ModReference}-{latest.Version}.smod";
-                StatusText = $"{Version} · {detail.ModReference}";
+                StatusText = string.Format(Strings.T("detail.status_prefix"), Version, detail.ModReference);
             }
             else
             {
-                StatusText = "Keine Version verfügbar.";
+                StatusText = Strings.T("status.no_version");
             }
         }
         catch (Exception ex)
         {
             Log.Warn(ex, "ficsit-Detail-Load fehlgeschlagen für {Mod}", _modIdOrRef);
-            Description = $"Fehler: {ex.Message}";
-            StatusText = "Fehler beim Laden.";
+            Description = Strings.T("status.error_prefix") + ex.Message;
+            StatusText = Strings.T("status.detail_load_error");
         }
         finally { IsLoading = false; }
     }
@@ -180,27 +180,27 @@ public sealed partial class ModDetailViewModel : ObservableObject
     {
         if (IsLoading || string.IsNullOrWhiteSpace(_downloadLink))
         {
-            _host.Notifications.Notify("Kein Download-Link verfügbar — Detail noch am Laden?",
+            _host.Notifications.Notify(Strings.T("notify.no_download_link"),
                 NotificationLevel.Warning);
             return;
         }
         DownloadBusy = true;
-        using var scope = _host.BeginProgress($"ficsit: {Title}");
-        scope.Report(0, "Download startet …");
+        using var scope = _host.BeginProgress(string.Format(Strings.T("progress.ficsit_prefix"), Title));
+        scope.Report(0, Strings.T("progress.download_start"));
         try
         {
             using var http = _host.CreateHttpClient("ficsit-download");
-            var progress = new Progress<double>(f => scope.Report(f, $"{_downloadFileName} · {(int)(f * 100)}%"));
+            var progress = new Progress<double>(f => scope.Report(f, string.Format(Strings.T("progress.download_file"), _downloadFileName, (int)(f * 100))));
             var target = await _installer.DownloadSmodAsync(http, _downloadLink!,
                 _downloadFileName ?? $"{_modIdOrRef}.smod", overwrite: false, progress);
-            _host.Notifications.Notify($"Heruntergeladen: {Path.GetFileName(target)}",
+            _host.Notifications.Notify(Strings.T("notify.downloaded_prefix") + Path.GetFileName(target),
                 NotificationLevel.Success);
             _downloadBus.RaiseDownloadsChanged(Path.GetFileName(target));
         }
         catch (Exception ex)
         {
             Log.Warn(ex, "ficsit-Detail-Download fehlgeschlagen für {Mod}", _modIdOrRef);
-            _host.Notifications.Notify($"Download-Fehler: {ex.Message}", NotificationLevel.Error);
+            _host.Notifications.Notify(Strings.T("notify.download_error_prefix") + ex.Message, NotificationLevel.Error);
         }
         finally { DownloadBusy = false; }
     }
@@ -210,18 +210,18 @@ public sealed partial class ModDetailViewModel : ObservableObject
     {
         if (IsLoading || string.IsNullOrWhiteSpace(Description))
         {
-            _host.Notifications.Notify("Bitte warten bis Detail geladen ist.", NotificationLevel.Info);
+            _host.Notifications.Notify(Strings.T("notify.detail_wait"), NotificationLevel.Info);
             return;
         }
         if (!await _host.Ai.IsAvailableAsync())
         {
             _host.Notifications.Notify(
-                "KI-Provider nicht erreichbar — bitte in den KroModIx-Einstellungen konfigurieren.",
+                Strings.T("notify.ai_unavailable"),
                 NotificationLevel.Warning);
             return;
         }
         SummaryBusy = true;
-        AiSummary = $"KI-Zusammenfassung via {_host.Ai.ProviderInfo} …";
+        AiSummary = string.Format(Strings.T("detail.ai_running_prefix"), _host.Ai.ProviderInfo);
         try
         {
             var systemPrompt = "Du bist ein deutschsprachiger Satisfactory-Mod-Reviewer. " +
@@ -231,13 +231,13 @@ public sealed partial class ModDetailViewModel : ObservableObject
             var userPrompt = $"Titel: {Title}\nAutor(en): {Authors}\n\nBeschreibung:\n{Description}";
             var answer = await _host.Ai.CompleteAsync(systemPrompt, userPrompt);
             AiSummary = string.IsNullOrWhiteSpace(answer)
-                ? "KI hat keine Antwort geliefert."
+                ? Strings.T("detail.ai_no_answer")
                 : answer;
         }
         catch (Exception ex)
         {
             Log.Warn(ex, "ficsit-Summarize fehlgeschlagen für {Mod}", _modIdOrRef);
-            AiSummary = $"Fehler: {ex.Message}";
+            AiSummary = Strings.T("status.error_prefix") + ex.Message;
         }
         finally { SummaryBusy = false; }
     }

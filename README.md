@@ -16,6 +16,12 @@ Direct-Download für alle User.
 - Auf Linux via Steam-Proton — kein Wine-Prefix-Umweg, Mods bleiben im
   Steam-Install-Ordner.
 
+## Neu in v0.6.0
+- **DE+EN-Übersetzung** aller User-facing Strings (106 Keys) — Tab-Labels,
+  Buttons, Placeholders, Tooltips, Statusmeldungen, Notifications, Dialoge,
+  Detail-Dialog + Settings-Tab. Sprachwechsel im Host schaltet nach Kachel-
+  Reselect live um.
+
 ## Features (v0.5.0)
 
 ### Katalog-Tab

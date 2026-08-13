@@ -111,7 +111,7 @@ public sealed partial class DownloadsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Refresh()
     {
-        Summary = "Downloads werden gelesen …";
+        Summary = Strings.T("status.reading_downloads");
         _ = Task.Run(async () =>
         {
             List<DownloadedSmod>? files = null;
@@ -135,12 +135,12 @@ public sealed partial class DownloadsViewModel : ObservableObject, IDisposable
                         Rows.Add(new DownloadRow(d));
                     var totalBytes = Rows.Sum(r => r.Source.FileSizeBytes);
                     Summary = Rows.Count == 0
-                        ? "Keine .smod-Dateien im Downloads-Ordner."
-                        : $"{Rows.Count} .smod · {totalBytes / 1024.0 / 1024.0:F1} MB gesamt";
+                        ? Strings.T("status.no_downloads")
+                        : string.Format(Strings.T("status.downloads_count_size"), Rows.Count, totalBytes / 1024.0 / 1024.0);
                 }
                 else
                 {
-                    Summary = $"Fehler beim Lesen: {error}";
+                    Summary = Strings.T("status.read_error_prefix") + error;
                 }
                 _ = LoadCoversAsync(Rows.ToArray());
             });
@@ -191,7 +191,7 @@ public sealed partial class DownloadsViewModel : ObservableObject, IDisposable
         try
         {
             var installed = _installer.Install(row.Source.FilePath, overwrite: true);
-            _host.Notifications.Notify($"Installiert: {installed.ModReference}",
+            _host.Notifications.Notify(Strings.T("notify.installed_prefix") + installed.ModReference,
                 NotificationLevel.Success);
             _downloadBus.RaiseModInstalled(installed.ModReference);
             Refresh();
@@ -199,7 +199,7 @@ public sealed partial class DownloadsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _host.Logger.Warn(ex, "Satisfactory Install-from-download fehlgeschlagen");
-            _host.Notifications.Notify($"Fehler: {ex.Message}", NotificationLevel.Error);
+            _host.Notifications.Notify(Strings.T("status.error_prefix") + ex.Message, NotificationLevel.Error);
         }
     }
 
@@ -212,15 +212,15 @@ public sealed partial class DownloadsViewModel : ObservableObject, IDisposable
         var rows = Rows.ToArray();
         if (rows.Length == 0)
         {
-            _host.Notifications.Notify("Keine Downloads zu installieren.", NotificationLevel.Info);
+            _host.Notifications.Notify(Strings.T("notify.no_downloads"), NotificationLevel.Info);
             return;
         }
-        using var scope = _host.BeginProgress($"Installiere {rows.Length} .smod-Downloads …");
+        using var scope = _host.BeginProgress(string.Format(Strings.T("progress.install_downloads"), rows.Length));
         int done = 0, failed = 0;
         for (int i = 0; i < rows.Length; i++)
         {
             var row = rows[i];
-            scope.Report((double)i / rows.Length, $"Installiere {i + 1}/{rows.Length}: {row.DisplayName}");
+            scope.Report((double)i / rows.Length, string.Format(Strings.T("progress.install_row"), i + 1, rows.Length, row.DisplayName));
             try
             {
                 var installed = _installer.Install(row.Source.FilePath, overwrite: true);
@@ -234,8 +234,8 @@ public sealed partial class DownloadsViewModel : ObservableObject, IDisposable
             }
         }
         var msg = failed == 0
-            ? $"{done} .smods installiert."
-            : $"{done} installiert, {failed} Fehler (siehe Log).";
+            ? string.Format(Strings.T("notify.bulk_install_ok"), done)
+            : string.Format(Strings.T("notify.bulk_install_partial"), done, failed);
         _host.Notifications.Notify(msg,
             failed == 0 ? NotificationLevel.Success : NotificationLevel.Warning);
         Refresh();
@@ -246,20 +246,20 @@ public sealed partial class DownloadsViewModel : ObservableObject, IDisposable
     {
         if (row is null) return;
         bool ok = await _host.Dialogs.ConfirmAsync(
-            "Download löschen",
-            $"„{row.Source.FileName}\" aus dem Downloads-Ordner löschen?",
-            okLabel: "Löschen", cancelLabel: "Abbrechen");
+            Strings.T("dialog.delete_download_title"),
+            string.Format(Strings.T("dialog.delete_download_msg"), row.Source.FileName),
+            okLabel: Strings.T("dialog.ok_delete"), cancelLabel: Strings.T("dialog.cancel"));
         if (!ok) return;
         try
         {
             _installer.DeleteDownload(row.Source.FilePath);
-            _host.Notifications.Notify($"Gelöscht: {row.Source.FileName}", NotificationLevel.Success);
+            _host.Notifications.Notify(Strings.T("notify.deleted_prefix") + row.Source.FileName, NotificationLevel.Success);
             _downloadBus.RaiseDownloadsChanged(row.Source.FileName);
             Refresh();
         }
         catch (Exception ex)
         {
-            _host.Notifications.Notify($"Fehler: {ex.Message}", NotificationLevel.Error);
+            _host.Notifications.Notify(Strings.T("status.error_prefix") + ex.Message, NotificationLevel.Error);
         }
     }
 
@@ -272,7 +272,7 @@ public sealed partial class DownloadsViewModel : ObservableObject, IDisposable
         if (string.IsNullOrWhiteSpace(modRef))
         {
             _host.Notifications.Notify(
-                $"Kein mod_reference im .smod-Manifest: {row.Source.FileName}",
+                string.Format(Strings.T("notify.no_mod_reference_file"), row.Source.FileName),
                 NotificationLevel.Info);
             return;
         }

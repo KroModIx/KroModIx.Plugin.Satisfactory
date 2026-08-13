@@ -16,12 +16,13 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
     public PluginMetadata Metadata { get; } = new(
         Id: "kroste.satisfactory",
         DisplayName: "Satisfactory Mod-Manager",
-        Version: "0.5.1",
+        Version: "0.6.0",
         Author: "Kroste",
         Description: "Mod-Manager für Satisfactory (Coffee Stain). ficsit.app-Katalog " +
             "via GraphQL, .smod-Direct-Download, Install in FactoryGame/Mods. Kroste-" +
-            "Card-Look, Auto-Refresh via FileSystemWatcher. Ab v0.1.0 grüner ↑-Badge " +
-            "auf der Satisfactory-Kachel bei neuen ficsit-Katalog-Einträgen.");
+            "Card-Look, Auto-Refresh via FileSystemWatcher. v0.6.0: DE+EN-Uebersetzung " +
+            "aller User-facing Strings. Ab v0.1.0 grüner ↑-Badge auf der Satisfactory-" +
+            "Kachel bei neuen ficsit-Katalog-Einträgen.");
 
     public IReadOnlyList<GameTarget> Targets { get; } = new[]
     {
@@ -47,6 +48,7 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
 
     public Task InitializeAsync(IHostServices host, IReadOnlyList<DetectedGame> activatedGames, CancellationToken ct)
     {
+        Strings.Init(host.Localization);
         _host = host;
         _paths = new SatisfactoryPaths(host);
         _ficsitSettings = new FicsitSettingsService(_paths);
@@ -154,7 +156,7 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
 
         var summary = _installedUpdatesTracker.Summary is { Length: > 0 } s
             ? s
-            : $"{installedCount} Mod-Update(s) verfügbar";
+            : string.Format(Strings.T("notify.updates_hint_summary_fallback"), installedCount);
         var result = _activatedGames
             .Where(g => g.Target.SteamAppId is int)
             .Select(g => new GameUpdateInfo(g.Target.SteamAppId!.Value, installedCount, summary))
@@ -182,7 +184,7 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
             _api = api; _settings = settings; _updatesChecker = updatesChecker;
         }
         public string Id => "installed";
-        public string Label => "Installiert";
+        public string Label => Strings.T("tab.installed");
         public string Icon => "\U0001F3ED"; // 🏭
         public int Order => 0;
         public bool IsVisible(DetectedGame game) => true;
@@ -210,7 +212,7 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
             _updateTracker = updateTracker; _host = host;
         }
         public string Id => "catalog";
-        public string Label => "Katalog";
+        public string Label => Strings.T("tab.catalog");
         public string Icon => "\U0001F30D"; // 🌍
         public int Order => 10;
         public bool IsVisible(DetectedGame game) => true;
@@ -234,7 +236,7 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
             _api = api; _settings = settings; _paths = paths;
         }
         public string Id => "downloads";
-        public string Label => "Downloads";
+        public string Label => Strings.T("tab.downloads");
         public string Icon => "\U0001F4E5"; // 📥
         public int Order => 20;
         public bool IsVisible(DetectedGame game) => true;
@@ -250,7 +252,7 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
         public SettingsTab(FicsitSettingsService settings, IHostServices host)
         { _settings = settings; _host = host; }
         public string Id => "settings";
-        public string Label => "Einstellungen";
+        public string Label => Strings.T("tab.settings");
         public string Icon => "⚙"; // ⚙
         public int Order => 30;
         public bool IsVisible(DetectedGame game) => true;

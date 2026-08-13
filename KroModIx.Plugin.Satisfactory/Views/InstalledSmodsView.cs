@@ -5,6 +5,7 @@ using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using KroModIx.Plugin.Satisfactory.Services;
 
 namespace KroModIx.Plugin.Satisfactory.Views;
 
@@ -15,32 +16,30 @@ public sealed class InstalledSmodsView : UserControl
 {
     public InstalledSmodsView()
     {
-        var checkUpdatesBtn = new Button { Name = "CheckUpdatesButton", Content = "🔄  Updates prüfen" };
+        var checkUpdatesBtn = new Button { Name = "CheckUpdatesButton", Content = Strings.T("btn.check_updates") };
         checkUpdatesBtn.Bind(Button.CommandProperty, new Binding(nameof(InstalledSmodsViewModel.CheckUpdatesCommand)));
         checkUpdatesBtn.Bind(Button.IsEnabledProperty, new Binding(nameof(InstalledSmodsViewModel.IsCheckingUpdates))
         {
             Converter = new Avalonia.Data.Converters.FuncValueConverter<bool, bool>(v => !v),
         });
-        ToolTip.SetTip(checkUpdatesBtn,
-            "Prüft für jeden installierten Mod ob ficsit eine neuere Version anbietet (throttled 250 ms pro Mod).");
+        ToolTip.SetTip(checkUpdatesBtn, Strings.T("tooltip.check_updates"));
 
         // Skill Kernprinzip 6c: Bulk-Update aller Rows mit HasUpdate. Nur
         // enabled wenn mindestens ein Update ansteht.
-        var updateAllBtn = new Button { Name = "UpdateAllButton", Content = "⬆  Alle updaten" };
+        var updateAllBtn = new Button { Name = "UpdateAllButton", Content = Strings.T("btn.update_all") };
         updateAllBtn.Classes.Add("accent");
         updateAllBtn.Bind(Button.CommandProperty, new Binding(nameof(InstalledSmodsViewModel.UpdateAllCommand)));
         updateAllBtn.Bind(Button.IsEnabledProperty, new Binding(nameof(InstalledSmodsViewModel.HasAnyUpdate)));
-        ToolTip.SetTip(updateAllBtn,
-            "Installiert alle Updates sequenziell (Rate-Limit-Ruecksicht). Erst 'Updates pruefen' klicken damit was zu tun ist.");
+        ToolTip.SetTip(updateAllBtn, Strings.T("tooltip.update_all"));
 
-        var refreshBtn = new Button { Content = "↺  Aktualisieren" };
+        var refreshBtn = new Button { Content = Strings.T("btn.refresh") };
         refreshBtn.Bind(Button.CommandProperty, new Binding(nameof(InstalledSmodsViewModel.RefreshCommand)));
-        var openFolderBtn = new Button { Content = "📂  Mods-Ordner" };
+        var openFolderBtn = new Button { Content = Strings.T("btn.mods_folder") };
         openFolderBtn.Bind(Button.CommandProperty, new Binding(nameof(InstalledSmodsViewModel.OpenModsFolderCommand)));
 
         var searchBox = new TextBox
         {
-            [!TextBox.PlaceholderTextProperty] = new Binding { Source = "Installierte Mods filtern …" },
+            [!TextBox.PlaceholderTextProperty] = new Binding { Source = Strings.T("placeholder.search_installed") },
         };
         searchBox.Bind(TextBox.TextProperty, new Binding(nameof(InstalledSmodsViewModel.SearchText))
         { Mode = BindingMode.TwoWay });
@@ -68,7 +67,7 @@ public sealed class InstalledSmodsView : UserControl
         var pathLabel = new TextBlock { FontSize = 11, Margin = new Thickness(0, 0, 0, 8) };
         pathLabel.Classes.Add("muted");
         pathLabel.Bind(TextBlock.TextProperty, new Binding(nameof(InstalledSmodsViewModel.ModsDir))
-        { StringFormat = "Mods: {0}" });
+        { StringFormat = Strings.T("status.mods_dir_prefix") });
 
         var summary = new TextBlock { Margin = new Thickness(0, 10, 0, 0) };
         summary.Classes.Add("muted");
@@ -206,19 +205,19 @@ public sealed class InstalledSmodsView : UserControl
         };
 
         // Update-Button (Accent) nur sichtbar wenn HasUpdate.
-        var updateBtn = new Button { Content = "⬆  Update" };
+        var updateBtn = new Button { Content = Strings.T("btn.update") };
         updateBtn.Classes.Add("accent");
         BindRowCommand(updateBtn, nameof(InstalledSmodsViewModel.UpdateModCommand));
         updateBtn.Bind(Button.IsVisibleProperty, new Binding(nameof(SmodInstalledRow.HasUpdate)));
 
-        var detailBtn = new Button { Content = "🔍  Details" };
+        var detailBtn = new Button { Content = Strings.T("btn.details") };
         BindRowCommand(detailBtn, nameof(InstalledSmodsViewModel.ShowDetailCommand));
 
-        var openDirBtn = new Button { Content = "📂  Ordner" };
+        var openDirBtn = new Button { Content = Strings.T("btn.open_dir") };
         openDirBtn.Classes.Add("ghost");
         BindRowCommand(openDirBtn, nameof(InstalledSmodsViewModel.OpenModDirCommand));
 
-        var uninstallBtn = new Button { Content = "🗑  Deinstallieren" };
+        var uninstallBtn = new Button { Content = Strings.T("btn.uninstall") };
         uninstallBtn.Classes.Add("danger");
         BindRowCommand(uninstallBtn, nameof(InstalledSmodsViewModel.UninstallCommand));
 

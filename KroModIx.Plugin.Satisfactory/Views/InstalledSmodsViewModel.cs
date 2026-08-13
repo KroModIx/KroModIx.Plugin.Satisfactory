@@ -100,7 +100,7 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
     [RelayCommand]
     private void Refresh()
     {
-        Summary = "Installierte Mods werden gelesen …";
+        Summary = Strings.T("status.reading_installed");
         _ = Task.Run(async () =>
         {
             List<InstalledSmodMod>? mods = null;
@@ -118,12 +118,12 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
                         _all.Add(new SmodInstalledRow(m));
                     var totalBytes = _all.Sum(r => r.Source.DirSizeBytes);
                     Summary = _all.Count == 0
-                        ? "Keine Mods in FactoryGame/Mods."
-                        : $"{_all.Count} Mods · {totalBytes / 1024.0 / 1024.0:F1} MB";
+                        ? Strings.T("status.no_mods")
+                        : string.Format(Strings.T("status.mods_count_size"), _all.Count, totalBytes / 1024.0 / 1024.0);
                 }
                 else
                 {
-                    Summary = $"Fehler beim Lesen: {error}";
+                    Summary = Strings.T("status.read_error_prefix") + error;
                 }
                 ApplyFilter();
                 _ = EnrichRowsAsync(_all.ToArray());
@@ -186,21 +186,21 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
     {
         if (row is null) return;
         bool ok = await _host.Dialogs.ConfirmAsync(
-            "Mod deinstallieren",
-            $"„{row.DisplayName}\" wirklich löschen? Der Ordner {row.Source.ModDir} wird komplett entfernt.",
-            okLabel: "Löschen", cancelLabel: "Abbrechen");
+            Strings.T("dialog.uninstall_title"),
+            string.Format(Strings.T("dialog.uninstall_msg"), row.DisplayName, row.Source.ModDir),
+            okLabel: Strings.T("dialog.ok_delete"), cancelLabel: Strings.T("dialog.cancel"));
         if (!ok) return;
         try
         {
             _installer.Uninstall(row.Source);
-            _host.Notifications.Notify($"Deinstalliert: {row.Source.ModReference}",
+            _host.Notifications.Notify(Strings.T("notify.uninstalled_prefix") + row.Source.ModReference,
                 NotificationLevel.Success);
             Refresh();
         }
         catch (Exception ex)
         {
             _host.Logger.Warn(ex, "Satisfactory Uninstall fehlgeschlagen");
-            _host.Notifications.Notify($"Fehler: {ex.Message}", NotificationLevel.Error);
+            _host.Notifications.Notify(Strings.T("status.error_prefix") + ex.Message, NotificationLevel.Error);
         }
     }
 
@@ -212,7 +212,7 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
         if (string.IsNullOrWhiteSpace(modRef))
         {
             _host.Notifications.Notify(
-                "Kein mod_reference verfügbar — kann Detail nicht öffnen.",
+                Strings.T("notify.no_mod_reference"),
                 NotificationLevel.Info);
             return;
         }
@@ -260,8 +260,8 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
                 },
                 onProgress: msg => Summary = msg);
             Summary = updated > 0
-                ? $"Updates gefunden: {updated} Mod(s)."
-                : "Keine Updates.";
+                ? string.Format(Strings.T("status.updates_found"), updated)
+                : Strings.T("status.no_updates");
             _host.Notifications.Notify(Summary,
                 updated > 0 ? NotificationLevel.Success : NotificationLevel.Info);
             OnPropertyChanged(nameof(HasAnyUpdate));
@@ -282,17 +282,17 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
         if (candidates.Count == 0)
         {
             _host.Notifications.Notify(
-                "Keine offenen Updates. Erst 🔄 Updates prüfen klicken.",
+                Strings.T("notify.no_updates_hint"),
                 NotificationLevel.Info);
             return;
         }
-        using var scope = _host.BeginProgress($"{candidates.Count} Updates …");
+        using var scope = _host.BeginProgress(string.Format(Strings.T("progress.updates_count"), candidates.Count));
         int done = 0, failed = 0;
         for (int i = 0; i < candidates.Count; i++)
         {
             var row = candidates[i];
             scope.Report((double)i / candidates.Count,
-                $"Update {i + 1}/{candidates.Count}: {row.DisplayName}");
+                string.Format(Strings.T("progress.update_of"), i + 1, candidates.Count, row.DisplayName));
             try
             {
                 await UpdateModAsync(row);
@@ -305,7 +305,9 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
             }
         }
         _host.Notifications.Notify(
-            failed == 0 ? $"{done} Mod(s) aktualisiert." : $"{done} aktualisiert, {failed} Fehler.",
+            failed == 0
+                ? string.Format(Strings.T("notify.bulk_update_ok"), done)
+                : string.Format(Strings.T("notify.bulk_update_partial"), done, failed),
             failed == 0 ? NotificationLevel.Success : NotificationLevel.Warning);
         OnPropertyChanged(nameof(HasAnyUpdate));
     }
@@ -320,13 +322,13 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
         var modRef = row.Source.Manifest?.ModReference;
         if (string.IsNullOrWhiteSpace(modRef))
         {
-            _host.Notifications.Notify("Kein ModReference — kann Update nicht auflösen.",
+            _host.Notifications.Notify(Strings.T("notify.no_mod_reference_update"),
                 NotificationLevel.Warning);
             return;
         }
 
-        using var scope = _host.BeginProgress($"Update: {row.DisplayName}");
-        scope.Report(0, "Detail laden …");
+        using var scope = _host.BeginProgress(string.Format(Strings.T("progress.update_title_prefix"), row.DisplayName));
+        scope.Report(0, Strings.T("progress.detail_load"));
         try
         {
             var detail = await _api.GetModDetailAsync(modRef);
@@ -334,24 +336,24 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
             if (detail is null || latest is null || string.IsNullOrWhiteSpace(latest.Link))
             {
                 _host.Notifications.Notify(
-                    $"Keine Download-Version für {row.DisplayName} bei ficsit.",
+                    string.Format(Strings.T("notify.no_download_ficsit"), row.DisplayName),
                     NotificationLevel.Warning);
                 return;
             }
 
-            scope.Report(0, $"Download v{latest.Version} …");
+            scope.Report(0, string.Format(Strings.T("progress.download_prefix"), latest.Version));
             using var http = _host.CreateHttpClient("ficsit-download");
             var progress = new Progress<double>(f =>
-                scope.Report(f, $"{row.DisplayName} v{latest.Version} · {(int)(f * 100)}%"));
+                scope.Report(f, string.Format(Strings.T("progress.download_row"), row.DisplayName, latest.Version, (int)(f * 100))));
             var fileName = $"{detail.ModReference}-{latest.Version}.smod";
             var smodPath = await _installer.DownloadSmodAsync(http, latest.Link,
                 fileName, overwrite: true, progress);
             _downloadBus.RaiseDownloadsChanged(Path.GetFileName(smodPath));
 
-            scope.Report(1.0, "Install …");
+            scope.Report(1.0, Strings.T("progress.install"));
             _installer.Install(smodPath, overwrite: true);
             _host.Notifications.Notify(
-                $"Update installiert: {row.DisplayName} → v{latest.Version}",
+                string.Format(Strings.T("notify.update_install_ok"), row.DisplayName, latest.Version),
                 NotificationLevel.Success);
             _downloadBus.RaiseModInstalled(modRef);
             Refresh();
@@ -362,7 +364,7 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
         catch (Exception ex)
         {
             Log.Warn(ex, "Update fehlgeschlagen für {Mod}", modRef);
-            _host.Notifications.Notify($"Update-Fehler: {ex.Message}", NotificationLevel.Error);
+            _host.Notifications.Notify(Strings.T("notify.update_error_prefix") + ex.Message, NotificationLevel.Error);
         }
     }
 
@@ -408,7 +410,7 @@ public sealed partial class SmodInstalledRow : ObservableObject
     private string? _latestVersion;
 
     public string UpdateBadgeText =>
-        HasUpdate && LatestVersion is not null ? $"⬆ Update v{LatestVersion}" : "";
+        HasUpdate && LatestVersion is not null ? string.Format(Strings.T("row.status_prefix"), LatestVersion) : "";
 
     public void SetUpdateAvailable(string catalogVersion)
     {

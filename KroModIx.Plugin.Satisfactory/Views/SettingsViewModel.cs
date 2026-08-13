@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KroModIx.Plugin.Contracts;
+using KroModIx.Plugin.Satisfactory.Services;
 using KroModIx.Plugin.Satisfactory.Services.Ficsit;
 
 namespace KroModIx.Plugin.Satisfactory.Views;
@@ -33,8 +34,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             CatalogRefreshHours = CatalogRefreshHours,
             DefaultSort = DefaultSort,
         });
-        StatusText = "Einstellungen gespeichert.";
-        _host.Notifications.Notify("ficsit-Einstellungen gespeichert.",
+        StatusText = Strings.T("settings.saved");
+        _host.Notifications.Notify(Strings.T("notify.settings_saved"),
             NotificationLevel.Success);
     }
 

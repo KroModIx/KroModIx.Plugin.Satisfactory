@@ -53,7 +53,7 @@ public sealed partial class CatalogViewModel : ObservableObject
     public ObservableCollection<CatalogRow> Rows { get; } = new();
 
     [ObservableProperty] private string _searchText = "";
-    [ObservableProperty] private string _status = "Katalog wird geladen …";
+    [ObservableProperty] private string _status = Strings.T("status.loading_catalog");
     [ObservableProperty] private bool _isBusy;
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
@@ -71,14 +71,14 @@ public sealed partial class CatalogViewModel : ObservableObject
             var snap = await _catalog.LoadAsync(forceRefresh);
             _all = snap.Entries.ToList();
             var ageH = (int)(DateTime.UtcNow - snap.SavedUtc).TotalHours;
-            Status = $"{snap.Entries.Count} Mods (Cache-Alter: {ageH} h)";
+            Status = string.Format(Strings.T("status.catalog_count"), snap.Entries.Count, ageH);
             ApplyFilter();
             _updateTracker.MarkSeen();
         }
         catch (Exception ex)
         {
             Log.Warn(ex, "ficsit-Katalog-Load fehlgeschlagen");
-            Status = $"Fehler beim Laden: {ex.Message}";
+            Status = Strings.T("status.catalog_load_error") + ex.Message;
         }
         finally { IsBusy = false; }
     }
@@ -156,31 +156,31 @@ public sealed partial class CatalogViewModel : ObservableObject
     private async Task DownloadRowAsync(CatalogRow? row)
     {
         if (row is null) return;
-        using var scope = _host.BeginProgress($"ficsit: {row.Source.Name}");
-        scope.Report(0, "Detail laden …");
+        using var scope = _host.BeginProgress(string.Format(Strings.T("progress.ficsit_prefix"), row.Source.Name));
+        scope.Report(0, Strings.T("progress.detail_load"));
         try
         {
             var detail = await _api.GetModDetailAsync(row.Source.Id);
             var latest = detail?.LatestVersion;
             if (detail is null || latest is null || string.IsNullOrWhiteSpace(latest.Link))
             {
-                _host.Notifications.Notify($"Keine Download-Version für {row.Source.Name}.",
+                _host.Notifications.Notify(string.Format(Strings.T("notify.no_download_version"), row.Source.Name),
                     NotificationLevel.Warning);
                 return;
             }
-            scope.Report(0, $"Download {latest.Version} …");
+            scope.Report(0, string.Format(Strings.T("progress.download_prefix_simple"), latest.Version));
             using var http = _host.CreateHttpClient("ficsit-download");
-            var progress = new Progress<double>(f => scope.Report(f, $"{row.Source.Name} · {(int)(f * 100)}%"));
+            var progress = new Progress<double>(f => scope.Report(f, string.Format(Strings.T("progress.download_row_simple"), row.Source.Name, (int)(f * 100))));
             var fileName = $"{detail.ModReference}-{latest.Version}.smod";
             var target = await _installer.DownloadSmodAsync(http, latest.Link, fileName, overwrite: false, progress);
-            _host.Notifications.Notify($"Heruntergeladen: {Path.GetFileName(target)}",
+            _host.Notifications.Notify(Strings.T("notify.downloaded_prefix") + Path.GetFileName(target),
                 NotificationLevel.Success);
             _downloadBus.RaiseDownloadsChanged(Path.GetFileName(target));
         }
         catch (Exception ex)
         {
             Log.Warn(ex, "ficsit-Download fehlgeschlagen für {Mod}", row.Source.Id);
-            _host.Notifications.Notify($"Download-Fehler: {ex.Message}", NotificationLevel.Error);
+            _host.Notifications.Notify(Strings.T("notify.download_error_prefix") + ex.Message, NotificationLevel.Error);
         }
     }
 }

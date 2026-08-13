@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using KroModIx.Plugin.Satisfactory.Services;
 
 namespace KroModIx.Plugin.Satisfactory.Views;
 
@@ -18,7 +19,7 @@ public sealed class ModDetailWindow : Window
 {
     public ModDetailWindow()
     {
-        Title = "ficsit-Mod-Detail";
+        Title = Strings.T("detail.window_title");
         Width = 900;
         Height = 720;
         MinWidth = 640;
@@ -131,11 +132,11 @@ public sealed class ModDetailWindow : Window
             RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto"),
             Margin = new Thickness(0, 10, 0, 0),
         };
-        AddMetaRow(metaGrid, 0, "Autor(en)",     nameof(ModDetailViewModel.Authors));
-        AddMetaRow(metaGrid, 1, "Version",       nameof(ModDetailViewModel.Version));
-        AddMetaRow(metaGrid, 2, "Aktualisiert",  nameof(ModDetailViewModel.UpdatedText));
-        AddMetaRow(metaGrid, 3, "Downloads",     nameof(ModDetailViewModel.DownloadsText));
-        AddMetaRow(metaGrid, 4, "Kompatibilität", nameof(ModDetailViewModel.CompatibilityText));
+        AddMetaRow(metaGrid, 0, Strings.T("detail.meta.authors"),       nameof(ModDetailViewModel.Authors));
+        AddMetaRow(metaGrid, 1, Strings.T("detail.meta.version"),       nameof(ModDetailViewModel.Version));
+        AddMetaRow(metaGrid, 2, Strings.T("detail.meta.updated"),       nameof(ModDetailViewModel.UpdatedText));
+        AddMetaRow(metaGrid, 3, Strings.T("detail.meta.downloads"),     nameof(ModDetailViewModel.DownloadsText));
+        AddMetaRow(metaGrid, 4, Strings.T("detail.meta.compatibility"), nameof(ModDetailViewModel.CompatibilityText));
 
         var shortDesc = new TextBlock
         {
@@ -163,7 +164,7 @@ public sealed class ModDetailWindow : Window
 
         var aiCard = BuildAiSummaryCard();
 
-        var descTitle = new TextBlock { Text = "Beschreibung", Margin = new Thickness(0, 8, 0, 6) };
+        var descTitle = new TextBlock { Text = Strings.T("detail.section.description"), Margin = new Thickness(0, 8, 0, 6) };
         descTitle.Classes.Add("section-label");
         var desc = new TextBlock { TextWrapping = TextWrapping.Wrap };
         desc.Bind(TextBlock.TextProperty, new Binding(nameof(ModDetailViewModel.Description)));
@@ -194,7 +195,7 @@ public sealed class ModDetailWindow : Window
 
     private static Control BuildAiSummaryCard()
     {
-        var title = new TextBlock { Text = "🤖 KI-Zusammenfassung", Margin = new Thickness(0, 0, 0, 6) };
+        var title = new TextBlock { Text = Strings.T("detail.section.ai_summary"), Margin = new Thickness(0, 0, 0, 6) };
         title.Classes.Add("section-label");
         var body = new TextBlock { TextWrapping = TextWrapping.Wrap };
         body.Bind(TextBlock.TextProperty, new Binding(nameof(ModDetailViewModel.AiSummary)));
@@ -213,31 +214,31 @@ public sealed class ModDetailWindow : Window
     {
         // Primär-Aktion: Direct-Download. ficsit-API liefert den Link öffentlich,
         // kein OAuth nötig — Button ist immer enabled (außer Busy).
-        var downloadBtn = new Button { Content = "⬇  Herunterladen" };
+        var downloadBtn = new Button { Content = Strings.T("btn.download_long") };
         downloadBtn.Classes.Add("accent");
         downloadBtn.Bind(Button.CommandProperty, new Binding(nameof(ModDetailViewModel.DownloadCommand)));
         downloadBtn.Bind(Button.IsEnabledProperty, new Binding(nameof(ModDetailViewModel.DownloadBusy))
         {
             Converter = new Avalonia.Data.Converters.FuncValueConverter<bool, bool>(v => !v),
         });
-        ToolTip.SetTip(downloadBtn, "Direct-Download der neuesten .smod-Version in den Downloads-Ordner");
+        ToolTip.SetTip(downloadBtn, Strings.T("tooltip.download_detail"));
 
-        var openBtn = new Button { Content = "↗  Auf ficsit.app öffnen" };
+        var openBtn = new Button { Content = Strings.T("btn.open_ficsit_long") };
         openBtn.Bind(Button.CommandProperty, new Binding(nameof(ModDetailViewModel.OpenInBrowserCommand)));
 
-        var sourceBtn = new Button { Content = "↗  Source" };
+        var sourceBtn = new Button { Content = Strings.T("btn.open_source") };
         sourceBtn.Classes.Add("ghost");
         sourceBtn.Bind(Button.CommandProperty, new Binding(nameof(ModDetailViewModel.OpenSourceCommand)));
         sourceBtn.Bind(Button.IsVisibleProperty, new Binding(nameof(ModDetailViewModel.HasSourceUrl)));
 
-        var summarizeBtn = new Button { Content = "🤖  KI-Zusammenfassung" };
+        var summarizeBtn = new Button { Content = Strings.T("btn.ai_summary") };
         summarizeBtn.Bind(Button.CommandProperty, new Binding(nameof(ModDetailViewModel.SummarizeCommand)));
         summarizeBtn.Bind(Button.IsEnabledProperty, new Binding(nameof(ModDetailViewModel.SummaryBusy))
         {
             Converter = new Avalonia.Data.Converters.FuncValueConverter<bool, bool>(v => !v),
         });
 
-        var closeBtn = new Button { Content = "Schließen" };
+        var closeBtn = new Button { Content = Strings.T("btn.close") };
         closeBtn.Classes.Add("ghost");
         closeBtn.Click += (_, _) => Close();
 
@@ -245,7 +246,7 @@ public sealed class ModDetailWindow : Window
         busy.Classes.Add("muted");
         busy.Bind(TextBlock.TextProperty, new Binding(nameof(ModDetailViewModel.DownloadBusy))
         {
-            Converter = new Avalonia.Data.Converters.FuncValueConverter<bool, string>(v => v ? "…Download läuft…" : "…KI läuft…"),
+            Converter = new Avalonia.Data.Converters.FuncValueConverter<bool, string>(v => v ? Strings.T("detail.busy_download") : Strings.T("detail.busy_ai")),
         });
         busy.Bind(TextBlock.IsVisibleProperty, new MultiBinding
         {

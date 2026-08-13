@@ -5,6 +5,7 @@ using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using KroModIx.Plugin.Satisfactory.Services;
 
 namespace KroModIx.Plugin.Satisfactory.Views;
 
@@ -15,15 +16,15 @@ public sealed class CatalogView : UserControl
 {
     public CatalogView()
     {
-        var refreshBtn = new Button { Content = "↺  Aktualisieren" };
+        var refreshBtn = new Button { Content = Strings.T("btn.refresh") };
         refreshBtn.Bind(Button.CommandProperty, new Binding(nameof(CatalogViewModel.RefreshCommand)));
 
-        var openDownloadsBtn = new Button { Content = "📂  Downloads-Ordner" };
+        var openDownloadsBtn = new Button { Content = Strings.T("btn.downloads_folder") };
         openDownloadsBtn.Bind(Button.CommandProperty, new Binding(nameof(CatalogViewModel.OpenDownloadsFolderCommand)));
 
         var searchBox = new TextBox
         {
-            [!TextBox.PlaceholderTextProperty] = new Binding { Source = "Katalog filtern (Name/ModReference/Beschreibung) …" },
+            [!TextBox.PlaceholderTextProperty] = new Binding { Source = Strings.T("placeholder.search_catalog") },
         };
         searchBox.Bind(TextBox.TextProperty, new Binding(nameof(CatalogViewModel.SearchText))
         { Mode = BindingMode.TwoWay });
@@ -145,15 +146,15 @@ public sealed class CatalogView : UserControl
             Children = { title, modRef, meta, shortDesc },
         };
 
-        var downloadBtn = new Button { Content = "⬇  Download" };
+        var downloadBtn = new Button { Content = Strings.T("btn.download") };
         downloadBtn.Classes.Add("accent");
         BindRowCommand(downloadBtn, nameof(CatalogViewModel.DownloadRowCommand));
-        ToolTip.SetTip(downloadBtn, "Direct-Download der neuesten .smod in den Downloads-Ordner");
+        ToolTip.SetTip(downloadBtn, Strings.T("tooltip.download_catalog"));
 
-        var detailBtn = new Button { Content = "🔍  Details" };
+        var detailBtn = new Button { Content = Strings.T("btn.details") };
         BindRowCommand(detailBtn, nameof(CatalogViewModel.ShowDetailCommand));
 
-        var openBtn = new Button { Content = "↗  ficsit öffnen" };
+        var openBtn = new Button { Content = Strings.T("btn.open_ficsit") };
         openBtn.Classes.Add("ghost");
         BindRowCommand(openBtn, nameof(CatalogViewModel.OpenRowInBrowserCommand));
 
