@@ -32,6 +32,9 @@ public static class Strings
 
     private static readonly Dictionary<string, string> De = new()
     {
+        // KI-Prompts (v0.7 sprachabhaengig)
+        ["ai.prompt.summary_system"] = "Du bist ein deutschsprachiger Satisfactory-Mod-Reviewer. Fasse die Mod-Beschreibung in 3-5 Saetzen zusammen: Was macht der Mod? Welche Features/Maschinen/Balance-Aenderungen? Fuer welchen Spielstil (QoL, Cheat, harder Late-Game, Cosmetic)? Sachlich, kein Werbe-Sprech. Antworte auf Deutsch.",
+
         // Tab-Labels
         ["tab.installed"] = "Installiert",
         ["tab.catalog"] = "Katalog",
@@ -173,6 +176,9 @@ public static class Strings
 
     private static readonly Dictionary<string, string> En = new()
     {
+        // AI prompts (v0.7 language-aware)
+        ["ai.prompt.summary_system"] = "You are an English-language Satisfactory mod reviewer. Summarize the mod description in 3-5 sentences: What does the mod do? Which features/machines/balance changes? For which playstyle (QoL, cheat, harder late-game, cosmetic)? Factual, no marketing language. Respond in English.",
+
         ["tab.installed"] = "Installed",
         ["tab.catalog"] = "Catalog",
         ["tab.downloads"] = "Downloads",

@@ -16,7 +16,7 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
     public PluginMetadata Metadata { get; } = new(
         Id: "kroste.satisfactory",
         DisplayName: "Satisfactory Mod-Manager",
-        Version: "0.6.0",
+        Version: "0.7.0",
         Author: "Kroste",
         Description: "Mod-Manager für Satisfactory (Coffee Stain). ficsit.app-Katalog " +
             "via GraphQL, .smod-Direct-Download, Install in FactoryGame/Mods. Kroste-" +

@@ -224,10 +224,7 @@ public sealed partial class ModDetailViewModel : ObservableObject
         AiSummary = string.Format(Strings.T("detail.ai_running_prefix"), _host.Ai.ProviderInfo);
         try
         {
-            var systemPrompt = "Du bist ein deutschsprachiger Satisfactory-Mod-Reviewer. " +
-                "Fasse die Mod-Beschreibung in 3–5 Sätzen zusammen: " +
-                "Was macht der Mod? Welche Features/Maschinen/Balance-Änderungen? " +
-                "Für welchen Spielstil (QoL, Cheat, harder Late-Game, Cosmetic)? Sachlich, kein Werbe-Sprech.";
+            var systemPrompt = Strings.T("ai.prompt.summary_system");
             var userPrompt = $"Titel: {Title}\nAutor(en): {Authors}\n\nBeschreibung:\n{Description}";
             var answer = await _host.Ai.CompleteAsync(systemPrompt, userPrompt);
             AiSummary = string.IsNullOrWhiteSpace(answer)
