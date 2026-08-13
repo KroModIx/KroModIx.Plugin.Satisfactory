@@ -51,9 +51,10 @@ Direct-Download für alle User.
 - Kein API-Key nötig
 
 ### IUpdateNotifier
-Grüner ↑-Badge auf der Satisfactory-Kachel bei neuen ficsit-Katalog-
-Einträgen UND bei Updates für installierte Mods (Auto-Check läuft 15 s
-nach Plugin-Load im Hintergrund).
+Grüner ↑-Badge auf der Satisfactory-Kachel **nur bei echten Updates für
+installierte Mods** (v0.5.1). Auto-Check läuft 15 s nach Plugin-Load im
+Hintergrund. Neue ficsit-Katalog-Einträge sind ein Community-News-Signal
+und werden bewusst nicht mehr im Actionable-Badge summiert.
 
 ## API
 
