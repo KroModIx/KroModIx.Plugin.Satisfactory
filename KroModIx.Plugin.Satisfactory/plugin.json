@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "kroste.satisfactory",
   "displayName": "Satisfactory Mod-Manager",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "author": "Kroste",
-  "description": "Mod-Manager für Satisfactory (Coffee Stain). ficsit.app-Katalog via GraphQL, Detail-Dialog mit Beschreibung + KI-Zusammenfassung, .smod-Direct-Download, Install in FactoryGame/Mods. Kroste-Card-Look, Auto-Refresh via FileSystemWatcher. v0.7.0: sprachabhaengige KI-Prompts (Strings.T-Keys) — KI antwortet in der aktuellen UI-Sprache. v0.6.0: DE+EN-Uebersetzung aller User-facing Strings. v0.5.1: grüner ↑-Badge nur noch bei echten Mod-Updates für installierte Mods (neue ficsit-Katalog-Einträge zählen nicht mehr).",
+  "description": "Mod-Manager für Satisfactory (Coffee Stain). ficsit.app-Katalog via GraphQL, Detail-Dialog mit Beschreibung + KI-Zusammenfassung, .smod-Direct-Download, Install in FactoryGame/Mods. Kroste-Card-Look, Auto-Refresh via FileSystemWatcher. v0.8.0: Cover-Decode via zentralem Host-Baukasten IHostServices.Images (Contracts v1.18) — SixLabors.ImageSharp aus dem Plugin-Bundle entfernt, WebP/AVIF/DDS-Fallbacks werden zentral vom Host erledigt. v0.7.0: sprachabhaengige KI-Prompts (Strings.T-Keys). v0.6.0: DE+EN-Uebersetzung aller User-facing Strings. v0.5.1: grüner ↑-Badge nur noch bei echten Mod-Updates für installierte Mods.",
   "assembly": "KroModIx.Plugin.Satisfactory.dll",
   "entryType": "KroModIx.Plugin.Satisfactory.SatisfactoryPlugin",
-  "minHostVersion": "1.7.0",
+  "minHostVersion": "1.18.0",
   "targets": [
     {
       "gameId": "satisfactory",

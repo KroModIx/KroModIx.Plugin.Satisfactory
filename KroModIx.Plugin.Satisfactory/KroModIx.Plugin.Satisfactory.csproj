@@ -3,9 +3,8 @@
     <OutputType>Library</OutputType>
     <RootNamespace>KroModIx.Plugin.Satisfactory</RootNamespace>
     <AssemblyName>KroModIx.Plugin.Satisfactory</AssemblyName>
-    <!-- Plugin-DLL braucht ihre transitiven Dependencies im Bundle
-         (SixLabors.ImageSharp für WebP-Decode). Ohne diese Property
-         landen sie nicht in bin/. -->
+    <!-- Plugin-DLL braucht ihre transitiven Dependencies im Bundle.
+         Ohne diese Property landen sie nicht in bin/. -->
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
@@ -17,9 +16,9 @@
                       PrivateAssets="all" ExcludeAssets="runtime" />
     <PackageReference Include="CommunityToolkit.Mvvm"
                       PrivateAssets="all" ExcludeAssets="runtime" />
-    <!-- Plugin-spezifisch: muss ins Bundle. ImageSharp decodet ficsit-WebP-
-         Cover (Avalonia/Skia unterstützt WebP standardmäßig nicht). -->
-    <PackageReference Include="SixLabors.ImageSharp" />
+    <!-- v0.8.0: SixLabors.ImageSharp entfernt — Format-Decode (WebP/AVIF/DDS)
+         macht ab jetzt der zentrale Host-Baukasten IHostServices.Images
+         (Contracts v1.18+). -->
   </ItemGroup>
 
   <ItemGroup>

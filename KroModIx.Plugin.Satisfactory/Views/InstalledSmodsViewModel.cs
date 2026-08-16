@@ -176,7 +176,7 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
     private async Task LoadCoverAsync(SmodInstalledRow row, string url, string modId)
     {
         using var http = _host.CreateHttpClient("ficsit-covers");
-        var bmp = await FicsitCoverLoader.LoadAsync(http, url, modId, _paths.FicsitCoverDir);
+        var bmp = await FicsitCoverLoader.LoadAsync(http, _host, url, modId, _paths.FicsitCoverDir);
         if (bmp is null) return;
         await Dispatcher.UIThread.InvokeAsync(() => row.Cover = bmp);
     }

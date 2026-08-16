@@ -121,7 +121,7 @@ public sealed partial class CatalogViewModel : ObservableObject
         try
         {
             using var http = _host.CreateHttpClient("ficsit-covers");
-            var bmp = await FicsitCoverLoader.LoadAsync(http, row.Source.Logo,
+            var bmp = await FicsitCoverLoader.LoadAsync(http, _host, row.Source.Logo,
                 row.Source.Id, _paths.FicsitCoverDir);
             if (bmp is null) return;
             await Dispatcher.UIThread.InvokeAsync(() => row.Cover = bmp);

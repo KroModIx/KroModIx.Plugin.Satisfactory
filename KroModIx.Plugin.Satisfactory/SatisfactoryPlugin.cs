@@ -16,11 +16,13 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
     public PluginMetadata Metadata { get; } = new(
         Id: "kroste.satisfactory",
         DisplayName: "Satisfactory Mod-Manager",
-        Version: "0.7.0",
+        Version: "0.8.0",
         Author: "Kroste",
         Description: "Mod-Manager für Satisfactory (Coffee Stain). ficsit.app-Katalog " +
             "via GraphQL, .smod-Direct-Download, Install in FactoryGame/Mods. Kroste-" +
-            "Card-Look, Auto-Refresh via FileSystemWatcher. v0.6.0: DE+EN-Uebersetzung " +
+            "Card-Look, Auto-Refresh via FileSystemWatcher. v0.8.0: Cover-Decode via " +
+            "zentralem Host-Baukasten IHostServices.Images (Contracts v1.18) — WebP-" +
+            "Convert-Layer aus dem Plugin-Bundle entfernt. v0.6.0: DE+EN-Uebersetzung " +
             "aller User-facing Strings. Ab v0.1.0 grüner ↑-Badge auf der Satisfactory-" +
             "Kachel bei neuen ficsit-Katalog-Einträgen.");
 
