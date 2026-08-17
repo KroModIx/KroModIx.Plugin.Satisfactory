@@ -16,11 +16,13 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
     public PluginMetadata Metadata { get; } = new(
         Id: "kroste.satisfactory",
         DisplayName: "Satisfactory Mod-Manager",
-        Version: "0.9.0",
+        Version: "0.9.1",
         Author: "Kroste",
         Description: "Mod-Manager für Satisfactory (Coffee Stain). ficsit.app-Katalog " +
             "via GraphQL, .smod-Direct-Download, Install in FactoryGame/Mods. Kroste-" +
-            "Card-Look, Auto-Refresh via FileSystemWatcher. v0.9.0: Detail-Dialog " +
+            "Card-Look, Auto-Refresh via FileSystemWatcher. v0.9.1: Release-Workflow " +
+            "bundelt jetzt alle transitiven Runtime-DLLs (Markdig fehlte in v0.9.0 → " +
+            "FileNotFoundException beim Oeffnen des Detail-Dialogs). v0.9.0: Detail-Dialog " +
             "rendert Rich-HTML via _host.Descriptions.CreateRichView (Contracts v1.21) — " +
             "Markdown wird via Markdig zu HTML, dann durch den Host-Baukasten weiter- " +
             "gereicht: Bold/Italic/Farben/Bilder/Listen inline statt Plain-Text-Wall. " +

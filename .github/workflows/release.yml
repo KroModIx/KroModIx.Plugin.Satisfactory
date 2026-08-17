@@ -51,7 +51,13 @@ jobs:
         # unverändert ist).
         run: |
           mkdir -p bundle
-          cp KroModIx.Plugin.Satisfactory/bin/Release/net10.0/KroModIx.Plugin.Satisfactory.dll bundle/
+          # v0.9.1: alle Runtime-DLLs mitkopieren (nicht nur Plugin-DLL),
+          # damit transitive Deps wie Markdig im Bundle landen.
+          # Host-Provided (Contracts/Avalonia/CommunityToolkit) sind eh
+          # nicht in bin/Release, weil sie via ExcludeAssets="runtime"
+          # ausgefiltert werden. deps.json ist Pflicht fuer den Loader.
+          cp KroModIx.Plugin.Satisfactory/bin/Release/net10.0/*.dll bundle/
+          cp KroModIx.Plugin.Satisfactory/bin/Release/net10.0/*.deps.json bundle/
           cp KroModIx.Plugin.Satisfactory/bin/Release/net10.0/plugin.json bundle/
           # Version im Bundle-Manifest auf die Tag-Version setzen (nur wenn Tag-Build).
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
