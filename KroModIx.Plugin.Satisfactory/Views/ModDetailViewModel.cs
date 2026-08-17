@@ -1,12 +1,15 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Avalonia.Controls;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KroModIx.Plugin.Contracts;
 using KroModIx.Plugin.Satisfactory.Services;
 using KroModIx.Plugin.Satisfactory.Services.Ficsit;
+using Markdig;
 using NLog;
 
 namespace KroModIx.Plugin.Satisfactory.Views;
@@ -22,6 +25,12 @@ namespace KroModIx.Plugin.Satisfactory.Views;
 public sealed partial class ModDetailViewModel : ObservableObject
 {
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
+    // Markdig-Pipeline mit "AdvancedExtensions" — GitHub-Flavored-Markdown-
+    // Superset (Tables, Autolinks, Task-Lists, Emphasis-Extras). ficsit-Autoren
+    // nutzen typischerweise GitHub-README-Style, das deckt der Advanced-Preset ab.
+    private static readonly MarkdownPipeline _markdownPipeline =
+        new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
     private readonly string _modIdOrRef;
     private readonly string _detailUrl;
@@ -83,6 +92,11 @@ public sealed partial class ModDetailViewModel : ObservableObject
     [ObservableProperty] private string _compatibilityText = "";
     [ObservableProperty] private string _sourceUrl = "";
     [ObservableProperty] private string _description = "";
+    // v0.9.0: Rich-HTML-View statt Plain-Text-TextBlock. Wird vom
+    // Descriptions-Baukasten (Host v1.21+) erzeugt und im Detail-Window
+    // per ContentControl.Content angezeigt. Plain-Text-Version bleibt in
+    // Description fuer AI-Prompts + Loading-Placeholder.
+    [ObservableProperty] private Control? _descriptionView;
     [ObservableProperty] private string _statusText = Strings.T("status.detail_loading");
     [ObservableProperty] private bool _isLoading = true;
     [ObservableProperty] private Bitmap? _cover;
@@ -125,11 +139,38 @@ public sealed partial class ModDetailViewModel : ObservableObject
             UpdatedText = detail.LastVersionDate.ToLocalTime().ToString("g");
             CompatibilityText = FormatCompatibility(detail.Compatibility);
 
-            Description = HtmlStrip.ToPlainText(detail.FullDescription);
+            var fullSrc = detail.FullDescription ?? "";
+            Description = HtmlStrip.ToPlainText(fullSrc);
             if (string.IsNullOrWhiteSpace(Description))
                 Description = string.IsNullOrWhiteSpace(detail.ShortDescription)
                     ? Strings.T("status.detail_no_desc")
                     : detail.ShortDescription;
+
+            // Rich-HTML-View parallel: Markdown erst zu HTML (Markdig),
+            // dann durch Host-Parser (BBCode-Fallback + Kroste-CSS +
+            // Avalonia-HtmlPanel). Control-Instanziierung MUSS auf UI-Thread
+            // laufen (Skia-Thread-Affinity, siehe Contracts v1.21 Skill).
+            if (!string.IsNullOrWhiteSpace(fullSrc))
+            {
+                try
+                {
+                    var htmlFromMd = Markdown.ToHtml(fullSrc, _markdownPipeline);
+                    var richHtml = _host.Descriptions.ToHtml(htmlFromMd);
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        DescriptionView = _host.Descriptions.CreateRichView(richHtml);
+                    });
+                }
+                catch (Exception rex)
+                {
+                    Log.Debug(rex, "Rich-HTML-Rendering fehlgeschlagen fuer {Mod} — Plain-Text-Fallback greift", _modIdOrRef);
+                    DescriptionView = null;
+                }
+            }
+            else
+            {
+                DescriptionView = null;
+            }
 
             var latest = detail.LatestVersion;
             if (latest is not null)

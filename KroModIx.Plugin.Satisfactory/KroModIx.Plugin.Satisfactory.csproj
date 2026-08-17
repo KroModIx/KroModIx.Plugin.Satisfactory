@@ -16,6 +16,12 @@
                       PrivateAssets="all" ExcludeAssets="runtime" />
     <PackageReference Include="CommunityToolkit.Mvvm"
                       PrivateAssets="all" ExcludeAssets="runtime" />
+    <!-- v0.9.0: Markdig — ficsit-Descriptions sind Markdown, der zentrale
+         Host-Parser _host.Descriptions macht nur HTML+BBCode. Markdig wandelt
+         Markdown zu HTML, dann geht es durch den Host-Baukasten weiter zu
+         CreateRichView. Markdig muss im Plugin-Bundle liegen (kein ExcludeAssets
+         runtime), da der Host es nicht bereitstellt. -->
+    <PackageReference Include="Markdig" PrivateAssets="all" />
     <!-- v0.8.0: SixLabors.ImageSharp entfernt — Format-Decode (WebP/AVIF/DDS)
          macht ab jetzt der zentrale Host-Baukasten IHostServices.Images
          (Contracts v1.18+). -->

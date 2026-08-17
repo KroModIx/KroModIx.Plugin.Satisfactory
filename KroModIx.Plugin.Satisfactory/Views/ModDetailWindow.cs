@@ -166,15 +166,33 @@ public sealed class ModDetailWindow : Window
 
         var descTitle = new TextBlock { Text = Strings.T("detail.section.description"), Margin = new Thickness(0, 8, 0, 6) };
         descTitle.Classes.Add("section-label");
-        var desc = new TextBlock { TextWrapping = TextWrapping.Wrap };
-        desc.Bind(TextBlock.TextProperty, new Binding(nameof(ModDetailViewModel.Description)));
+
+        // v0.9.0: Rich-HTML-Rendering via _host.Descriptions.CreateRichView
+        // (HtmlPanel mit Kroste-CSS: Bold, Italic, Farben, Bilder, Listen)
+        // statt Plain-Text-TextBlock. Fallback wenn noch nicht fertig geladen
+        // ODER Rich-Rendering fehlgeschlagen: Loading-TextBlock zeigt Plain-
+        // Text (Description enthaelt dann Placeholder oder tatsaechlichen Text).
+        var descRichHost = new ContentControl();
+        descRichHost.Bind(ContentControl.ContentProperty,
+            new Binding(nameof(ModDetailViewModel.DescriptionView)));
+
+        var descLoadingFallback = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        descLoadingFallback.Classes.Add("muted");
+        descLoadingFallback.Bind(TextBlock.TextProperty,
+            new Binding(nameof(ModDetailViewModel.Description)));
+        descLoadingFallback.Bind(TextBlock.IsVisibleProperty,
+            new Binding(nameof(ModDetailViewModel.DescriptionView))
+            {
+                Converter = new Avalonia.Data.Converters.FuncValueConverter<Control?, bool>(
+                    c => c is null),
+            });
 
         var descCard = new Border
         {
             Padding = new Thickness(14),
             [!Border.BackgroundProperty] = new DynamicResourceExtension("KrosteSurfaceBrush"),
             CornerRadius = new CornerRadius(8),
-            Child = desc,
+            Child = new StackPanel { Children = { descRichHost, descLoadingFallback } },
         };
 
         var scrollContent = new StackPanel
