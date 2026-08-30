@@ -26,6 +26,7 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
     private readonly SmodInstallService _installer;
+    private readonly EventHandler<string> _installedHandler;
     private readonly SatisfactoryPaths _paths;
     private readonly DownloadEventBus _downloadBus;
     private readonly IHostServices _host;
@@ -51,8 +52,13 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
         SetupWatcher();
         RefreshCommand.Execute(null);
 
-        _downloadBus.ModInstalled += (_, _) =>
-            Dispatcher.UIThread.Post(() => Refresh());
+        // Handler als Feld statt Lambda: nur so kann Dispose wieder
+        // abmelden. Als Lambda hielt der Event-Bus diese VM fuer die
+        // restliche Session am Leben, nachdem der Host-Tab-Cache sie
+        // verworfen hat (Sprachwechsel, Plugin-State-Wechsel) — samt
+        // geladener Cover-Bitmaps, und jeder Install refreshte die Leichen mit.
+        _installedHandler = (_, _) => Dispatcher.UIThread.Post(() => Refresh());
+        _downloadBus.ModInstalled += _installedHandler;
     }
 
     public string ModsDir { get; }
@@ -368,7 +374,11 @@ public sealed partial class InstalledSmodsViewModel : ObservableObject, IDisposa
         }
     }
 
-    public void Dispose() => _watcher?.Dispose();
+    public void Dispose()
+    {
+        _downloadBus.ModInstalled -= _installedHandler;
+        _watcher?.Dispose();
+    }
 }
 
 public sealed partial class SmodInstalledRow : ObservableObject
