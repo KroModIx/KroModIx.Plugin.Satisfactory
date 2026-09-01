@@ -8,6 +8,17 @@
 [ficsit.app](https://ficsit.app)-GraphQL-API — kein Login, kein API-Key,
 Direct-Download für alle User.
 
+## Voraussetzungen
+
+Braucht den [KroModIx-Host](https://github.com/KroModIx/KroModIx) **ab
+v1.27.0** — dort sitzen der Backup-Baukasten und der gemeinsame
+Versions-Vergleich, gegen die dieses Plugin gebaut ist. Ältere Hosts laden
+das Plugin nicht.
+
+## Screenshot
+
+![ficsit-Katalog mit Download-Zahlen und Bewertungen](docs/screenshot.png)
+
 ## Ziel-Spiel
 
 **Satisfactory** — Steam AppId 526870.
@@ -22,7 +33,7 @@ Direct-Download für alle User.
   Detail-Dialog + Settings-Tab. Sprachwechsel im Host schaltet nach Kachel-
   Reselect live um.
 
-## Features (v0.5.0)
+## Features
 
 ### Katalog-Tab
 - ficsit.app-Mods im 24-h-Cache (~1500 Einträge)
@@ -88,6 +99,18 @@ Alternativ: 1-Klick-Install über die Install-Karte in der KroModIx-Sidebar.
 - **SMM (Satisfactory Mod Manager):** [`satisfactorymodding/SatisfactoryModManager`](https://github.com/satisfactorymodding/SatisfactoryModManager)
 - **ficsit-cli:** [`satisfactorymodding/ficsit-cli`](https://github.com/satisfactorymodding/ficsit-cli)
   — Referenz für die GraphQL-Queries
+
+## Backups vor jedem Install
+
+Bevor das Plugin Dateien ins Spiel schreibt, legt es einen Snapshot des
+Ziel-Verzeichnisses an — bei Einzel-Installs einen pro Mod, bei Bulk-Installs
+**einen** vor dem ganzen Durchlauf. Zurückspielen läuft über das
+Backups-Fenster im Kontextmenü der Sidebar-Kachel; es gibt bewusst kein
+Auto-Rollback, damit du entscheidest, welchen Stand du zurückholst.
+Aufbewahrt werden die letzten zehn Snapshots pro Spiel.
+
+Schlägt ein Snapshot fehl, läuft der Install trotzdem durch (mit Log-Eintrag)
+— das Backup ist ein Netz, kein Türsteher.
 
 ## Lizenz
 
