@@ -32,29 +32,14 @@
   Muster. Cover-Load off-UI-Thread. Nexus-Enrichment sequenziell mit 250 ms
   Throttle.
 
-## v0.1.0 — was drin ist
+## Stand
 
-- Katalog-Tab: Rows mit Cover, Popularity/Downloads/Views/Updated, Suche,
-  Detail-Dialog per Doppelklick, Direct-Download-Button.
-- Detail-Dialog: Cover, Autor(en), Version, Kompatibilität (EA/EXP),
-  Source-URL, ficsit-Link, Beschreibung (HTML/Markdown-stripped),
-  KI-Zusammenfassung via `_host.Ai`, Download-Button.
-- Downloads-Tab: heruntergeladene .smod-Files mit Cover/Enrichment,
-  Install-Button (entpackt nach FactoryGame/Mods/), Details-Button, Delete.
-- Installiert-Tab: Ordner in FactoryGame/Mods/ mit data.json-Metadata +
-  Enrichment. Details-Dialog, Ordner-öffnen, Deinstallieren.
-- Settings-Tab: Cache-Refresh-Hours + DefaultSort (Popularity/Hotness/…).
-- IUpdateNotifier: grüner ↑-Badge bei neuen Katalog-Einträgen.
+Die maßgebliche Feature-Liste steht in der `description` in `plugin.json` —
+sie wird bei jedem Release mitgepflegt und ist damit die einzige Stelle, die
+nicht veralten kann. Ergänzend die GitHub-Releases des Repos.
 
-## v0.2 — Roadmap
-
-- Enable/Disable pro Mod (SMM-Style Profile via separates profiles.json —
-  nicht Dateisystem-Rename wie LS25).
-- Backup/Restore der installierten Mod-Ordner als ZIP.
-- Dependency-Auflösung: `getMod.versions.dependencies` prüfen + parallel-
-  Download.
-- Update-Check pro installiertem Mod (Version-Vergleich mit ficsit-Katalog).
-- Compatibility-Warnung im Detail-Dialog wenn EA/EXP „Damaged" oder „Broken".
+Hier bewusst keine Versions-Momentaufnahme: die vorherige Fassung dieser Datei
+beschrieb noch v0.1.0, während das Repo längst deutlich weiter war.
 
 ## Referenz
 
@@ -73,10 +58,12 @@
 
 ## Bekannte Grenzen
 
-- **v0.1.0 kennt kein Enable/Disable pro Mod** — alles was in
-  `FactoryGame/Mods/` liegt, wird von SML beim Spiel-Start geladen. Wer's
-  temporär abschalten will: Ordner wegkopieren oder mit „Deinstallieren" weg.
-  SMM-kompatible Profile kommen in v0.2.
+- **Kein Enable/Disable pro Mod** — alles was in `FactoryGame/Mods/` liegt,
+  wird von SML beim Spiel-Start geladen. Wer's temporär abschalten will:
+  Ordner wegkopieren oder mit „Deinstallieren" weg. SMM macht das über ein
+  separates `profiles.json`; portiert ist das bis heute nicht, die
+  entsprechenden Hinweise stehen als Kommentar in `InstalledSmodMod.cs` und
+  `SettingsView.cs`.
 - **Kein Dependency-Resolver** — Mods die auf andere Mods aufbauen erfordern
-  manuellen Zusatz-Install. v0.2.
+  manuellen Zusatz-Install.
 - **Compatibility-Status wird nur angezeigt**, nicht als Blocker verwendet.
