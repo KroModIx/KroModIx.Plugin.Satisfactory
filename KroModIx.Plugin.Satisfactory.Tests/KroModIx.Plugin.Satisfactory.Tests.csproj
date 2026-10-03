@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>KroModIx.Plugin.Satisfactory.Tests</RootNamespace>
+    <!-- xunit.v3 spamt Warnungen ueber generische Tests — nicht als Fehler
+         behandeln, sonst kompiliert das Testprojekt nicht mit
+         TreatWarningsAsErrors=true aus Directory.Build.props. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="KroModIx.Plugin.Contracts" />
+    <PackageReference Include="KroModIx.Plugin.TestKit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\KroModIx.Plugin.Satisfactory\KroModIx.Plugin.Satisfactory.csproj" />
+  </ItemGroup>
+</Project>

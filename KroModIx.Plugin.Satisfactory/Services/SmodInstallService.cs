@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using KroModIx.Plugin.Contracts;
 using NLog;
 
 namespace KroModIx.Plugin.Satisfactory.Services;
@@ -21,12 +22,15 @@ public sealed class SmodInstallService
     private readonly string _modsDir;
     private readonly string _downloadsDir;
     private readonly SmodMetadataReader _reader;
+    private readonly IArchiveService _archives;
 
-    public SmodInstallService(string modsDir, string downloadsDir, SmodMetadataReader reader)
+    public SmodInstallService(string modsDir, string downloadsDir, SmodMetadataReader reader,
+        IArchiveService archives)
     {
         _modsDir = modsDir;
         _downloadsDir = downloadsDir;
         _reader = reader;
+        _archives = archives;
         Directory.CreateDirectory(_downloadsDir);
     }
 
@@ -90,7 +94,23 @@ public sealed class SmodInstallService
     /// Falls das Ziel schon existiert und <paramref name="overwrite"/> false ist,
     /// wirft eine Exception. Bei true wird das Ziel komplett gelöscht + neu
     /// entpackt (Update-Case). Der ModReference kommt aus data.json — ohne
-    /// gültiges Manifest schlägt Install fehl.</summary>
+    /// gültiges Manifest schlägt Install fehl.
+    ///
+    /// <para><b>Seit v0.13.0 über <c>IHostServices.Archives</c></b> (Host
+    /// v1.33.0). Vorher lief das über <c>ZipFile.ExtractToDirectory</c>. Das
+    /// hat <b>keine Lücke</b> gelassen — nachgemessen am 03.10.2026: ein
+    /// Eintrag außerhalb des Ziels führt zu
+    /// <c>IOException: Extracting Zip entry would have resulted in a file
+    /// outside the specified destination directory.</c> und die Datei wird
+    /// nicht geschrieben. Es bricht aber <b>mitten im Vorgang</b> ab und
+    /// lässt die bereits entpackten Dateien liegen — und weil der
+    /// Update-Weg das Zielverzeichnis vorher löscht, stand der Nutzer dann
+    /// mit einer halb installierten Mod da, wo vorher eine ganze war,
+    /// und mit einer Meldung aus dem Framework.</para>
+    ///
+    /// <para>Jetzt werden die Einträge <b>vor</b> dem Löschen geprüft. Ist
+    /// einer unsicher, passiert gar nichts: die alte Fassung bleibt
+    /// stehen.</para></summary>
     public InstalledSmodMod Install(string smodPath, bool overwrite = false)
     {
         var (manifest, error) = _reader.ReadFromZip(smodPath);
@@ -99,6 +119,28 @@ public sealed class SmodInstallService
 
         Directory.CreateDirectory(_modsDir);
         var targetDir = Path.Combine(_modsDir, manifest.ModReference);
+
+        // Pruefen BEVOR die alte Fassung geloescht wird. Der Ordnername kommt
+        // aus dem Manifest im Archiv, ist also genauso unvertrauenswuerdig
+        // wie ein Eintragspfad.
+        if (!_archives.TryResolveSafe(_modsDir, manifest.ModReference, out _))
+            throw new InvalidDataException(
+                $"Unsicherer ModReference im Manifest: {manifest.ModReference}");
+        var unsicher = _archives.List(smodPath)
+            .Where(e => !_archives.TryResolveSafe(targetDir, e.Path, out _))
+            .ToList();
+        if (unsicher.Count > 0)
+        {
+            Log.Warn("Ausbruchsversuch in {Smod}, {Count} Eintrag/Eintraege: {Entries}",
+                smodPath, unsicher.Count, string.Join(", ", unsicher.Select(e => e.Path)));
+            throw new InvalidDataException(
+                $"Die .smod enthaelt {unsicher.Count} Eintrag/Eintraege, die aus dem "
+                + "Mod-Ordner herausschreiben wollen — "
+                + string.Join(", ", unsicher.Take(3).Select(e => e.Path))
+                + (unsicher.Count > 3 ? ", …" : "")
+                + ". Nicht installiert; eine vorhandene Fassung bleibt unangetastet.");
+        }
+
         if (Directory.Exists(targetDir))
         {
             if (!overwrite)
@@ -107,7 +149,7 @@ public sealed class SmodInstallService
         }
 
         Log.Info("Install: {Smod} -> {Target}", smodPath, targetDir);
-        ZipFile.ExtractToDirectory(smodPath, targetDir);
+        _archives.Extract(smodPath, targetDir);
 
         var info = new DirectoryInfo(targetDir);
         long size = 0;

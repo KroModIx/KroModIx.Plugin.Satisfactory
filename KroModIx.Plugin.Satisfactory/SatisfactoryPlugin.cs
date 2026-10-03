@@ -80,7 +80,8 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
                     + "{Game} (InstallDir={Dir})", game.Target.DisplayName, game.InstallDir);
                 continue;
             }
-            var installer = new SmodInstallService(modsDir, _paths.DownloadsDir, _smodReader);
+            var installer = new SmodInstallService(modsDir, _paths.DownloadsDir, _smodReader,
+                host.Archives);
             _installers[game.Target.GameId] = installer;
             _updateCheckers[game.Target.GameId] = new InstalledUpdatesChecker(
                 installer, _ficsitApi, _installedUpdatesTracker, host);
