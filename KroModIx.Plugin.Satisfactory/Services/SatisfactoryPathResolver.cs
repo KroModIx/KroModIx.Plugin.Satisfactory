@@ -26,10 +26,37 @@ namespace KroModIx.Plugin.Satisfactory.Services;
 /// </summary>
 public sealed class SatisfactoryPathResolver
 {
+    /// <summary>Bekannte Schreibweisen des Mods-Ordners, in Prioritaet.
+    /// Der erste Eintrag ist der kanonische — er wird angelegt, wenn keiner
+    /// existiert.</summary>
+    private static readonly string[] ModDirCandidates =
+    {
+        "FactoryGame/Mods",   // SMM/ficsit-cli-Standard
+        "Mods",               // vereinzelt von Hand so angelegt
+    };
+
+    /// <summary>Der vorhandene Mods-Ordner, oder null wenn keiner existiert.
+    /// Nur lesen — legt nichts an. Fuer Anzeige-Pfade.</summary>
     public string? GetModsDir(DetectedGame game)
     {
-        if (string.IsNullOrEmpty(game.InstallDir) || !Directory.Exists(game.InstallDir))
-            return null;
-        return Path.Combine(game.InstallDir, "FactoryGame", "Mods");
+        if (string.IsNullOrEmpty(game.InstallDir)) return null;
+        return ModFolderDiscovery.Find(game.InstallDir, ModDirCandidates);
+    }
+
+    /// <summary>Der Mods-Ordner, angelegt falls noetig (v0.12.0).
+    ///
+    /// <para>Vorher stand hier ein festes <c>Path.Combine(InstallDir,
+    /// "FactoryGame", "Mods")</c>. Der Ordner gehoert aber nicht zur
+    /// Vanilla-Installation — er entsteht erst durch SML oder die erste Mod
+    /// und ist nach einer Neuinstallation weg. Das Plugin meldete dann
+    /// „Mods-Ordner existiert nicht", zeigte eine leere Liste, und
+    /// installieren ging auch nicht, weil das Ziel fehlte. Jetzt wird der
+    /// kanonische Pfad angelegt — genau den legt SMM auch an — und eine
+    /// abweichende Schreibweise (<c>mods/</c> unter Linux) wird gefunden
+    /// statt uebersehen.</para></summary>
+    public string? EnsureModsDir(DetectedGame game)
+    {
+        if (string.IsNullOrEmpty(game.InstallDir)) return null;
+        return ModFolderDiscovery.FindOrCreate(game.InstallDir, ModDirCandidates);
     }
 }

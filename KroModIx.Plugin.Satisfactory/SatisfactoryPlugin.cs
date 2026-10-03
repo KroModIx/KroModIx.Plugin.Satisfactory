@@ -69,11 +69,15 @@ public sealed class SatisfactoryPlugin : IGameModPlugin, IUpdateNotifier
 
         foreach (var game in activatedGames)
         {
-            var modsDir = _pathResolver.GetModsDir(game);
+            // v0.12.0: Ensure statt Get — ein fehlender Mods-Ordner war bisher
+            // eine Sackgasse (leere Liste, und installieren ging auch nicht,
+            // weil das Ziel fehlte). Der Ordner gehoert nicht zur Vanilla-
+            // Installation; angelegt wird genau der Pfad, den SMM auch anlegt.
+            var modsDir = _pathResolver.EnsureModsDir(game);
             if (modsDir is null)
             {
-                host.Logger.Warn("Satisfactory: konnte keinen Mods-Pfad ableiten für {Game}",
-                    game.Target.DisplayName);
+                host.Logger.Warn("Satisfactory: Mods-Ordner weder gefunden noch anlegbar für "
+                    + "{Game} (InstallDir={Dir})", game.Target.DisplayName, game.InstallDir);
                 continue;
             }
             var installer = new SmodInstallService(modsDir, _paths.DownloadsDir, _smodReader);
