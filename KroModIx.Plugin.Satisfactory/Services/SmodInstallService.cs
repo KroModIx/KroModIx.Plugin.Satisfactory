@@ -24,6 +24,17 @@ public sealed class SmodInstallService
     private readonly SmodMetadataReader _reader;
     private readonly IArchiveService _archives;
 
+    /// <summary>Wirft, wenn der Eintrag einem fremden Mod-Manager gehört. Die
+    /// Meldung nennt Verwalter, Folge und Ausweg — am 04.10.2026 hat genau so
+    /// ein Löschen im Icarus-Plugin eine Mod aus dem Spiel genommen, ohne dass
+    /// es auffiel, weil die Quelle woanders unversehrt lag.</summary>
+    private static void NurWennUnser(InstalledSmodMod mod, string verb)
+    {
+        if (mod.CanModify) return;
+        throw new InvalidOperationException(
+            ForeignManagerDetection.Meldung(mod.ModReference, mod.ManagedBy, verb));
+    }
+
     public SmodInstallService(string modsDir, string downloadsDir, SmodMetadataReader reader,
         IArchiveService archives)
     {
@@ -66,7 +77,8 @@ public sealed class SmodInstallService
                 Manifest: manifest,
                 ReadError: error));
         }
-        return result;
+        // Fremdverwaltete Eintraege einmal beim Scan markieren.
+        return result.Select(m => m.MitVerwalterErkennung()).ToList();
     }
 
     /// <summary>Enumeriert alle .smod-Files im plugin-eigenen Downloads-Ordner.
@@ -167,6 +179,7 @@ public sealed class SmodInstallService
     /// <summary>Löscht den Mod-Ordner rekursiv.</summary>
     public void Uninstall(InstalledSmodMod mod)
     {
+        NurWennUnser(mod, "deinstallieren");
         if (!Directory.Exists(mod.ModDir)) return;
         Log.Info("Uninstall: {Dir}", mod.ModDir);
         Directory.Delete(mod.ModDir, recursive: true);
